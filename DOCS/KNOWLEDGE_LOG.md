@@ -7,7 +7,7 @@
 - correction : ajout d'un bloc `logging` dans `data/config.json`
 - piege : l'etat Git n'est pas verifiable dans cet environnement car la commande `git` est indisponible
 - consequence : ne pas inventer de revision ou de commit dans la documentation de travail
-- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 03:43:42 +02:00`
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 03:51:33 +02:00`
 - correction de connaissance : dans cet environnement de reprise, `git` est disponible et `git status --short --branch` a ete execute avec succes
 - piege : `python -m src.chart_editor` importait le module puis quittait sans ouvrir l'editeur, faute de bloc `if __name__ == "__main__"`
 - correction : ajout d'un point d'entree `main()` pour l'editeur de charts et conservation d'un fallback sans preview sonore si le mixer audio echoue

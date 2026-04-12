@@ -18,7 +18,7 @@
 - ajout d'un `.gitignore` pour les artefacts de build, caches Python et logs generes
 - mise a jour de `README.md`, `DOCS/USER_BIBLE.md`, `DOCS/DEVELOPER_BIBLE.md` et `DOCS/KNOWLEDGE_LOG.md`
 - deplacement des rapports traites vers `BUGS/Fixed/`
-- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `03:43:42 +02:00`
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `03:51:33 +02:00`
 - note de verification : `git status --short --branch` a ete execute avec succes dans cet environnement
 - mise en place d'un systeme de logs central configurable via `data/config.json`
 - ajout de deux canaux de logs distincts : `user` et `debug`
