@@ -521,6 +521,62 @@ class PlayMenu:
         pass
 
 
+class PauseMenu:
+    """In-game pause menu."""
+    def __init__(self, on_resume, on_options, on_restart, on_quit):
+        self.on_resume = on_resume
+        self.on_options = on_options
+        self.on_restart = on_restart
+        self.on_quit = on_quit
+
+        width, height = 300, 55
+        center_x = 640 - width // 2
+        self.buttons = [
+            Button(center_x, 225, width, height, "RESUME", self.on_resume),
+            Button(center_x, 295, width, height, "OPTIONS", self.on_options),
+            Button(center_x, 365, width, height, "RESTART", self.on_restart),
+            Button(center_x, 435, width, height, "QUIT", self.on_quit),
+        ]
+        self.font_title = pygame.font.Font(None, 64)
+        self.font_hint = pygame.font.Font(None, 28)
+
+    def handle_events(self, events):
+        """Handle pause menu input."""
+        mouse_pos = pygame.mouse.get_pos()
+
+        for event in events:
+            if event.type == pygame.MOUSEMOTION:
+                for button in self.buttons:
+                    button.update(mouse_pos)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                for button in self.buttons:
+                    button.handle_click(mouse_pos)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.on_resume()
+
+    def draw(self, surface):
+        """Draw the pause overlay."""
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        surface.blit(overlay, (0, 0))
+
+        title = self.font_title.render("PAUSED", True, (255, 255, 255))
+        title_rect = title.get_rect(center=(640, 150))
+        surface.blit(title, title_rect)
+
+        for button in self.buttons:
+            button.draw(surface)
+
+        hint = self.font_hint.render("ESC: Resume", True, (200, 200, 200))
+        hint_rect = hint.get_rect(center=(640, 520))
+        surface.blit(hint, hint_rect)
+
+    def update(self):
+        """Update pause menu state."""
+        pass
+
+
 class SongListMenu:
     """Menu to select a song for Free Play"""
     def __init__(self, songs, on_song_select, on_back):

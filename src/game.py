@@ -3,17 +3,35 @@ Core game logic for Friday Night Funkin' Lightweight
 """
 import pygame
 import json
+import threading
+import webbrowser
 from enum import Enum
 from pathlib import Path
 from src.logging_utils import get_debug_logger, get_user_logger, load_project_config
 from src.resources import get_resource_path
 from src.sprites import Note, HitZone, Character, NoteType, FloatingScore
 from src.settings import Settings
-from src.menu import MenuScreen, OptionsScreen, PlayMenu, SongListMenu, WeekListMenu
+from src.menu import MenuScreen, OptionsScreen, PauseMenu, PlayMenu, SongListMenu, WeekListMenu
 from src.week_manager import WeekManager, ChartManager
 
 
 SUPPORTED_AUDIO_EXTENSIONS = (".mp3", ".ogg", ".wav")
+KONAMI_SEQUENCE = (
+    pygame.K_UP,
+    pygame.K_UP,
+    pygame.K_DOWN,
+    pygame.K_DOWN,
+    pygame.K_LEFT,
+    pygame.K_RIGHT,
+    pygame.K_LEFT,
+    pygame.K_RIGHT,
+    pygame.K_b,
+    pygame.K_a,
+)
+KONAMI_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1"
+KONAMI_MESSAGE = "You've been so fuckin rick Rolled dude ! Ahah bad chance"
+KONAMI_COOLDOWN_MS = 8000
+KONAMI_MESSAGE_MS = 5000
 user_logger = get_user_logger("game")
 debug_logger = get_debug_logger("game")
 
@@ -70,7 +88,15 @@ class Game:
         self.play_menu = None
         self.free_play_menu = None
         self.story_mode_menu = None
+        self.pause_menu = None
         self.current_week = None
+        self.current_song_key = None
+        self.was_playing_before_pause = False
+        self.options_opened_from_pause = False
+        self.konami_index = 0
+        self.konami_last_activation_ms = -KONAMI_COOLDOWN_MS
+        self.konami_message_until_ms = 0
+        self.konami_url_opener = webbrowser.open
         
     def apply_keybinds(self):
         """Apply saved keybinds to key_map"""
@@ -135,6 +161,7 @@ class Game:
         self.stop_song_playback()
         self.init_game_state()
         self.setup_sprites()
+        self.current_song_key = song_name
         chart_path = get_resource_path("data", "charts", f"{song_name}.json")
         if chart_path.exists():
             with open(chart_path, 'r', encoding="utf-8") as f:
@@ -330,24 +357,146 @@ class Game:
     
     def show_options(self):
         """Show options menu"""
+        self.options_opened_from_pause = False
+        self.reset_konami_sequence()
         self.options_screen = OptionsScreen(
             on_back=self.back_to_menu,
             settings=self.settings
         )
         self.game_state = GameState.OPTIONS
+
+    def show_pause_menu(self):
+        """Pause the current gameplay session."""
+        self.was_playing_before_pause = self.playing
+        if self.playing or self.audio_started:
+            self.pause_song_playback()
+        else:
+            self.playing = False
+            self.paused = True
+        self.keys_pressed = [False] * 4
+        self.pause_menu = PauseMenu(
+            on_resume=self.resume_from_pause,
+            on_options=self.show_pause_options,
+            on_restart=self.restart_current_song,
+            on_quit=self.quit_to_main_menu,
+        )
+        self.game_state = GameState.PAUSED
+
+    def resume_from_pause(self):
+        """Resume gameplay from the pause menu."""
+        self.keys_pressed = [False] * 4
+        if self.was_playing_before_pause:
+            self.start_song_playback()
+        else:
+            self.playing = False
+            self.paused = False
+        self.game_state = GameState.PLAYING
+
+    def show_pause_options(self):
+        """Open options from the pause menu."""
+        self.options_opened_from_pause = True
+        self.options_screen = OptionsScreen(
+            on_back=self.back_to_pause_menu,
+            settings=self.settings
+        )
+        self.game_state = GameState.OPTIONS
+
+    def back_to_pause_menu(self):
+        """Return from options to the pause menu."""
+        if self.options_screen:
+            self.options_screen.save_settings()
+        self.apply_keybinds()
+        self.game_state = GameState.PAUSED
+
+    def restart_current_song(self):
+        """Restart the current chart from the beginning."""
+        if not self.current_song_key:
+            self.quit_to_main_menu()
+            return
+
+        song_name = self.current_song_key
+        self.play_song(song_name)
+        self.start_song_playback()
+
+    def quit_to_main_menu(self):
+        """Quit the active song and return to the main menu."""
+        self.stop_song_playback()
+        self.init_game_state()
+        self.setup_sprites()
+        self.current_week = None
+        self.current_song_key = None
+        self.pause_menu = None
+        self.options_screen = None
+        self.options_opened_from_pause = False
+        self.reset_konami_sequence()
+        self.game_state = GameState.MENU
     
     def back_to_menu(self):
         """Go back to main menu"""
         if self.options_screen:
             self.options_screen.save_settings()
         self.apply_keybinds()  # Reapply keybinds after options
+        self.options_opened_from_pause = False
+        self.reset_konami_sequence()
         self.game_state = GameState.MENU
     
     def quit_game(self):
         """Quit the game"""
         self.stop_song_playback()
+        self.reset_konami_sequence()
         self.running = False
         self.game_state = GameState.QUIT
+
+    def is_ingame_context(self):
+        """Return True when global ingame inputs should be observed."""
+        return (
+            self.game_state in (GameState.PLAYING, GameState.PAUSED)
+            or (self.game_state == GameState.OPTIONS and self.options_opened_from_pause)
+        )
+
+    def reset_konami_sequence(self):
+        """Reset the Konami input buffer."""
+        self.konami_index = 0
+
+    def observe_konami_key(self, key):
+        """Track the Konami Code without consuming the input event."""
+        if not self.is_ingame_context():
+            self.reset_konami_sequence()
+            return
+
+        expected_key = KONAMI_SEQUENCE[self.konami_index]
+        if key == expected_key:
+            self.konami_index += 1
+            if self.konami_index == len(KONAMI_SEQUENCE):
+                self.reset_konami_sequence()
+                self.activate_konami_easter_egg()
+            return
+
+        self.konami_index = 1 if key == KONAMI_SEQUENCE[0] else 0
+
+    def activate_konami_easter_egg(self):
+        """Open the rickroll URL and show the temporary ingame message."""
+        now = pygame.time.get_ticks()
+        if now - self.konami_last_activation_ms < KONAMI_COOLDOWN_MS:
+            return
+
+        self.konami_last_activation_ms = now
+        self.konami_message_until_ms = now + KONAMI_MESSAGE_MS
+        thread = threading.Thread(target=self.open_konami_url, daemon=True)
+        thread.start()
+
+    def open_konami_url(self):
+        """Open the Konami URL in the default browser."""
+        try:
+            opened = self.konami_url_opener(KONAMI_URL, new=2, autoraise=True)
+        except Exception as error:
+            user_logger.warning("Impossible d'ouvrir le navigateur pour l'easter egg.")
+            debug_logger.warning("Ouverture navigateur echouee: %s", error)
+            return
+
+        if not opened:
+            user_logger.warning("Le navigateur n'a pas confirme l'ouverture de l'easter egg.")
+            debug_logger.warning("webbrowser.open a retourne False pour %s", KONAMI_URL)
         
     def load_chart(self):
         """Load song chart"""
@@ -414,12 +563,16 @@ class Game:
         
         for event in events:
             if event.type == pygame.QUIT:
-                self.running = False
+                self.quit_game()
+            elif event.type == pygame.KEYDOWN:
+                self.observe_konami_key(event.key)
         
         if self.game_state == GameState.MENU:
             self.menu_screen.handle_events(events)
         elif self.game_state == GameState.OPTIONS:
             self.options_screen.handle_events(events)
+        elif self.game_state == GameState.PAUSED:
+            self.pause_menu.handle_events(events)
         elif self.game_state == GameState.PLAY_MENU:
             self.play_menu.handle_events(events)
         elif self.game_state == GameState.FREE_PLAY:
@@ -430,8 +583,7 @@ class Game:
             for event in events:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        self.stop_song_playback()
-                        self.game_state = GameState.MENU
+                        self.show_pause_menu()
                     elif event.key == pygame.K_SPACE:
                         if self.playing:
                             self.pause_song_playback()
@@ -547,6 +699,8 @@ class Game:
             self.menu_screen.update()
         elif self.game_state == GameState.OPTIONS:
             self.options_screen.update()
+        elif self.game_state == GameState.PAUSED:
+            self.pause_menu.update()
         elif self.game_state == GameState.PLAY_MENU:
             self.play_menu.update()
         elif self.game_state == GameState.FREE_PLAY:
@@ -588,6 +742,11 @@ class Game:
             self.menu_screen.draw(self.screen)
         elif self.game_state == GameState.OPTIONS:
             self.options_screen.draw(self.screen)
+            self.draw_konami_message()
+        elif self.game_state == GameState.PAUSED:
+            self.draw_gameplay()
+            self.pause_menu.draw(self.screen)
+            self.draw_konami_message()
         elif self.game_state == GameState.PLAY_MENU:
             self.play_menu.draw(self.screen)
         elif self.game_state == GameState.FREE_PLAY:
@@ -595,15 +754,36 @@ class Game:
         elif self.game_state == GameState.STORY_MODE:
             self.story_mode_menu.draw(self.screen)
         elif self.game_state == GameState.PLAYING:
-            self.screen.fill((30, 30, 30))
-            
-            # Draw sprites
-            self.all_sprites.draw(self.screen)
-            
-            # Draw UI
-            self.draw_ui()
+            self.draw_gameplay()
+            self.draw_konami_message()
         
         pygame.display.flip()
+
+    def draw_gameplay(self):
+        """Draw the active gameplay scene without flipping the display."""
+        self.screen.fill((30, 30, 30))
+        self.all_sprites.draw(self.screen)
+        self.draw_ui()
+
+    def draw_konami_message(self):
+        """Draw the temporary Konami easter egg message."""
+        if pygame.time.get_ticks() > self.konami_message_until_ms:
+            return
+
+        font = pygame.font.Font(None, 34)
+        text = font.render(KONAMI_MESSAGE, True, (255, 255, 255))
+        padding_x = 18
+        padding_y = 10
+        rect = text.get_rect(center=(self.config['window']['width'] / 2, 90))
+        box = pygame.Rect(
+            rect.left - padding_x,
+            rect.top - padding_y,
+            rect.width + padding_x * 2,
+            rect.height + padding_y * 2,
+        )
+        pygame.draw.rect(self.screen, (20, 20, 20), box)
+        pygame.draw.rect(self.screen, (255, 80, 120), box, 3)
+        self.screen.blit(text, rect)
     
     def draw_ui(self):
         """Draw UI elements (score, combo, etc)"""
@@ -632,9 +812,9 @@ class Game:
         self.screen.blit(time_text, (self.config['window']['width'] - 250, 10))
         
         # Controls hint
-        if not self.playing:
+        if self.game_state == GameState.PLAYING and not self.playing:
             hint_text = pygame.font.Font(None, 32).render(
-                "Press SPACE to start | w/a/s/d to play | ESC to quit",
+                "Press SPACE to start | w/a/s/d to play | ESC to pause",
                 True,
                 (150, 150, 150)
             )

@@ -149,7 +149,22 @@ After selecting PLAY, choose your mode:
 ### Controls During Gameplay
 - **W/A/S/D**: Hit notes in lanes (Up/Left/Down/Right)
 - **SPACE**: Start/pause the chart and loaded song audio
-- **ESC**: Return to main menu
+- **ESC**: Open the pause menu
+
+### Pause Menu
+- **RESUME**: Return to the current chart without resetting score, combo, timing or spawned notes
+- **OPTIONS**: Open the existing options screen, then return to the pause menu
+- **RESTART**: Restart the current chart from zero with a clean gameplay state
+- **QUIT**: Stop the current chart and return to the main menu
+
+### Easter Egg
+During an active chart, the pause menu, or options opened from pause, enter:
+
+```text
+UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT, B, A
+```
+
+The game opens `https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1` in the default browser and shows `You've been so fuckin rick Rolled dude ! Ahah bad chance`. Browser autoplay can still be blocked by the browser's local policy.
 
 ### Options Menu
 

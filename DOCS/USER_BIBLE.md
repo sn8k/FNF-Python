@@ -45,6 +45,22 @@
 - un chart peut definir un champ optionnel `audio` avec un chemin relatif, par exemple `assets/Songs/2hot BF mix.mp3`
 - si l'audio est absent ou illisible, le chart reste jouable en mode muet et un avertissement est ecrit dans les logs
 
+## Pause ingame
+- en partie, `ESC` ouvre le menu pause au lieu de quitter directement le chart
+- `RESUME` reprend la partie courante sans remettre a zero le score, le combo, le timer ou les notes deja apparues
+- `OPTIONS` ouvre les options existantes, puis le bouton retour ramene au menu pause
+- `RESTART` relance le chart courant depuis zero avec un etat de gameplay propre
+- `QUIT` arrete l'audio et revient au menu principal
+- pendant la pause, le timer du chart, les notes, les animations de score et l'audio restent figes
+
+## Easter egg Konami Code
+- contextes actifs : partie en cours, menu pause, options ouvertes depuis le menu pause
+- sequence : `UP`, `UP`, `DOWN`, `DOWN`, `LEFT`, `RIGHT`, `LEFT`, `RIGHT`, `B`, `A`
+- effet : ouverture du navigateur par defaut sur `https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1`
+- message visible : `You've been so fuckin rick Rolled dude ! Ahah bad chance`
+- anti-spam : une activation est limitee par cooldown pour eviter une rafale d'onglets
+- limite : le navigateur peut bloquer l'autoplay malgre `autoplay=1`, selon sa politique locale
+
 ## Editeur de charts
 - clic gauche : ajouter une note dans la lane cliquee
 - clic droit : supprimer une note proche

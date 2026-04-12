@@ -1,6 +1,18 @@
 # Changelog
 
 ## 2026-04-12
+- ajout d'un easter egg Konami Code actif en gameplay, pause et options ouvertes depuis la pause
+- ouverture du lien `https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1` via le navigateur par defaut avec cooldown anti-spam
+- affichage ingame du message exact `You've been so fuckin rick Rolled dude ! Ahah bad chance`
+- documentation de la limite navigateur : `autoplay=1` peut etre bloque par la politique locale du navigateur
+- mise a jour du backlog `TODOs/2026-04-12_konami_code_rickroll.md`, du README et des bibles projet
+- ajout d'un menu pause ingame accessible avec `ESC` pendant une partie
+- ajout des actions pause `RESUME`, `OPTIONS`, `RESTART` et `QUIT`
+- conservation de l'etat de partie pendant `RESUME` : score, combo, timer, notes spawn et audio restent coherents
+- retour des options vers le menu pause quand elles sont ouvertes en contexte ingame
+- ajout de `current_song_key` pour relancer le chart courant via `RESTART` sans heuristique sur le nom affiche
+- mise a jour du backlog `TODOs/2026-04-12_pause_ingame_menu.md`, du README et des bibles projet
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `03:58:29 +02:00`
 - correction du lancement de `python -m src.chart_editor` par ajout d'un point d'entree `main()`
 - ajout d'un fallback audio dans l'editeur de charts : l'editeur reste utilisable si `pygame.mixer` est indisponible
 - ajout d'un point d'entree CLI a `python -m src.week_manager` pour verifier les weeks et charts disponibles
@@ -29,4 +41,6 @@
 - ajout d'un `.gitignore` pour les caches Python, environnements virtuels, logs generes, secrets locaux, caches d'outils et sorties de build
 - retrait de l'index Git des caches Python et logs generes deja suivis, sans suppression locale des fichiers
 - note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date -Format yyyy-MM-dd`
+- ajout d'un backlog multi-agents dans `TODOs/2026-04-12_pause_ingame_menu.md` pour implementer une pause ingame avec menu `reprendre/options/restart/quit`
+- ajout d'un second backlog multi-agents dans `TODOs/2026-04-12_konami_code_rickroll.md` pour implementer un easter egg Konami Code ouvrant un Rickroll et affichant un message ingame dedie
 - note de verification : les regles `.gitignore` ont ete verifiees avec `git check-ignore`

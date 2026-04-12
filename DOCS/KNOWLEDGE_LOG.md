@@ -31,3 +31,30 @@
 - piege : ajouter une regle `.gitignore` ne retire pas les fichiers deja suivis par Git
 - correction : retirer les caches Python et logs generes de l'index avec `git rm --cached` quand ils sont deja versionnes
 - verification : la date `2026-04-12` a ete reverifiee localement avec `Get-Date -Format yyyy-MM-dd`
+- piege : `src/game.py` expose deja `GameState.PAUSED` et les helpers de pause audio, mais `ESC` en gameplay renvoie encore directement au menu principal
+- consequence : la pause ingame demandera une vraie machine d'etats pour separer reprise, options ingame, restart et quit sans casser la partie en cours
+- piege : `OptionsScreen` sait deja sauvegarder les parametres, mais son callback de retour actuel vise le menu principal et non un menu pause contextuel
+- trace : creation du backlog multi-agents `TODOs/2026-04-12_pause_ingame_menu.md` pour piloter l'implementation et imposer une mise a jour continue de la checklist
+- piege verifie : aucun mecanisme de navigateur externe ni aucun tracker de sequence globale type Konami Code n'est present dans `src/` a ce stade
+- consequence : l'easter egg Rickroll devra centraliser son suivi d'inputs dans la boucle runtime et documenter la limite potentielle de l'autoplay navigateur
+- trace : creation du backlog multi-agents `TODOs/2026-04-12_konami_code_rickroll.md` pour piloter l'implementation de l'easter egg ingame
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 03:58:29 +02:00`
+- reference : documentation Pygame consultee pour `pygame.mixer.music.pause()`, `unpause()`, `stop()` et `get_pos()` : https://www.pygame.org/docs/ref/music.html
+- reference : documentation Pygame consultee pour la queue d'evenements et `pygame.event.get()` : https://www.pygame.org/docs/ref/event.html
+- decision : utiliser `GameState.PAUSED` avec un `PauseMenu` dedie plutot qu'un retour direct au menu principal
+- piege : `ESC` quittait la partie et stoppait l'audio ; cette touche doit maintenant ouvrir la pause et ne plus detruire l'etat du chart
+- correction : `show_pause_menu()` fige l'audio et le gameplay, `resume_from_pause()` reprend seulement si la partie etait en lecture avant la pause
+- piege : les options existantes retournaient toujours au menu principal via leur callback
+- correction : les options ouvertes depuis la pause utilisent `back_to_pause_menu()` et appliquent les keybinds avant de revenir au menu pause
+- piege : `restart` ne doit pas reconstruire le chart depuis le nom affiche, car le nom JSON et le nom de fichier peuvent diverger
+- correction : `current_song_key` est renseigne par `play_song()` et sert de source de verite pour `restart_current_song()`
+- limite documentee : le story mode actuel lance encore uniquement le premier morceau d'une week ; la pause nettoie `current_week` sur `QUIT`, mais l'enchainement multi-song reste hors scope courant
+- reference : documentation Python consultee pour `webbrowser.open()` : https://docs.python.org/3/library/webbrowser.html
+- reference : documentation MDN consultee sur les politiques d'autoplay navigateur : https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay
+- decision : le tracker Konami est centralise dans `Game.handle_events()` pour observer les `KEYDOWN` sans interrompre les controles normaux
+- decision : les contextes ingame autorises sont `PLAYING`, `PAUSED` et `OPTIONS` uniquement quand les options viennent du menu pause
+- piege : une touche maintenue ou une repetition rapide de la sequence pourrait ouvrir trop d'onglets
+- correction : `KONAMI_COOLDOWN_MS` limite les activations et le buffer est remis a zero apres chaque activation
+- piege : l'ouverture du navigateur peut echouer ou ne pas confirmer l'ouverture
+- correction : `webbrowser.open()` est appele dans un thread daemon avec journalisation explicite des exceptions et des retours `False`
+- limite documentee : `autoplay=1` demande l'autoplay, mais le navigateur peut le bloquer si sa politique locale refuse l'audio automatique
