@@ -48,6 +48,7 @@
 - le titre de la frontpage bouge legerement pour attirer l'oeil sans perturber la navigation
 - n'importe quelle touche ou un clic permet de passer l'intro sans attendre la fin du timer
 - sur le menu principal, taper `AVRIL` active un easter egg ou le bouton `QUIT` fuit la souris sans sortir de la fenetre
+- le 1er avril, l'easter egg `AVRIL` est active automatiquement au demarrage du menu principal
 
 ## Options d'affichage
 - `WINDOWED` garde le jeu dans une fenetre 1280x720
@@ -61,6 +62,14 @@
 - gestionnaire de weeks et charts : `python -m src.week_manager`
 - editeur de weeks : `python -m src.week_editor`
 - `menu.bat` propose aussi une option pour lire les dernieres lignes de `logs/user.log` et `logs/debug.log`
+
+## Free Play et difficultes
+- le menu Free Play regroupe les fichiers par chanson
+- si plusieurs difficultes existent, un menu de difficulte apparait avant de lancer le chart
+- suffixes reconnus : `-easy` pour easy, `-hard` pour hard
+- un fichier sans suffixe comme `spookeez.json` est considere comme la difficulte normale
+- l'indication de controles en partie utilise les keybinds actuellement sauvegardes
+- l'ecran d'options affiche le numero de version du projet en haut a droite
 
 ## Builds redistribuables
 - build release : `scripts\build_release.bat -Clean`

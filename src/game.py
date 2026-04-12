@@ -7,12 +7,12 @@ import threading
 import webbrowser
 from enum import Enum
 from pathlib import Path
-from src.keybinds import LANE_ACTIONS, binding_matches_event, normalize_keybinds
+from src.keybinds import LANE_ACTIONS, binding_label, binding_matches_event, normalize_keybinds
 from src.logging_utils import get_debug_logger, get_user_logger, load_project_config
 from src.resources import get_resource_path
 from src.sprites import Note, HitZone, Character, NoteType, FloatingScore
 from src.settings import Settings
-from src.menu import IntroScreen, MenuScreen, OptionsScreen, PauseMenu, PlayMenu, SongListMenu, WeekListMenu
+from src.menu import IntroScreen, MenuScreen, OptionsScreen, PauseMenu, PlayMenu, SongListMenu, WeekListMenu, DifficultyMenu
 from src.week_manager import WeekManager, ChartManager
 
 
@@ -46,7 +46,8 @@ class GameState(Enum):
     PLAY_MENU = 5
     FREE_PLAY = 6
     STORY_MODE = 7
-    QUIT = 8
+    DIFFICULTY_SELECT = 8
+    QUIT = 9
 
 class Game:
     def __init__(self):
@@ -93,6 +94,7 @@ class Game:
         self.play_menu = None
         self.free_play_menu = None
         self.story_mode_menu = None
+        self.difficulty_menu = None
         self.pause_menu = None
         self.current_week = None
         self.current_song_key = None
@@ -185,14 +187,17 @@ class Game:
         self.options_screen = None
         self.options_opened_from_pause = False
         self.reset_konami_sequence()
-        chart_path = get_resource_path("data", "charts", f"{song_name}.json")
-        if chart_path.exists():
-            with open(chart_path, 'r', encoding="utf-8") as f:
-                self.chart = json.load(f)
+        try:
+            chart_path = self.chart_manager.get_chart_path(song_name)
+            if chart_path is None:
+                raise FileNotFoundError(song_name)
+            self.chart = self.chart_manager.load_chart(song_name)
             debug_logger.info("Chart charge: %s", chart_path)
-        else:
+        except (FileNotFoundError, ValueError, json.JSONDecodeError, OSError) as error:
             debug_logger.warning(
-                "Chart introuvable pour '%s', chargement du chart par defaut.", song_name
+                "Chart introuvable ou invalide pour '%s', chargement du chart par defaut: %s",
+                song_name,
+                error,
             )
             self.load_chart()
         self.setup_sprites()
@@ -354,13 +359,32 @@ class Game:
     def show_free_play(self):
         """Show free play song selection"""
         self.reset_konami_sequence(clear_message=True)
-        songs = self.chart_manager.get_chart_names()
+        songs = self.chart_manager.get_song_names()
         self.free_play_menu = SongListMenu(
             songs=songs,
-            on_song_select=lambda s: self.play_song(self.chart_manager.get_chart_file(s)),
+            on_song_select=self.select_song_for_play,
             on_back=self.show_play_menu
         )
         self.game_state = GameState.FREE_PLAY
+
+    def select_song_for_play(self, song_name):
+        """Select a song, then choose its difficulty when multiple charts exist."""
+        difficulty_entries = self.chart_manager.get_difficulties_for_song(song_name)
+        if not difficulty_entries:
+            self.play_song(song_name)
+            return
+
+        if len(difficulty_entries) == 1:
+            self.play_song(difficulty_entries[0].key)
+            return
+
+        self.difficulty_menu = DifficultyMenu(
+            song_name=song_name,
+            difficulties=difficulty_entries,
+            on_difficulty_select=self.play_song,
+            on_back=self.show_free_play,
+        )
+        self.game_state = GameState.DIFFICULTY_SELECT
     
     def show_story_mode(self):
         """Show story mode week selection"""
@@ -458,6 +482,7 @@ class Game:
         self.current_song_key = None
         self.pause_menu = None
         self.options_screen = None
+        self.difficulty_menu = None
         self.options_opened_from_pause = False
         self.reset_konami_sequence(clear_message=True)
         self.game_state = GameState.MENU
@@ -652,6 +677,8 @@ class Game:
             self.free_play_menu.handle_events(events)
         elif self.game_state == GameState.STORY_MODE:
             self.story_mode_menu.handle_events(events)
+        elif self.game_state == GameState.DIFFICULTY_SELECT:
+            self.difficulty_menu.handle_events(events)
         elif self.game_state == GameState.PLAYING:
             for event in events:
                 if event.type == pygame.KEYDOWN:
@@ -784,6 +811,8 @@ class Game:
             self.free_play_menu.update()
         elif self.game_state == GameState.STORY_MODE:
             self.story_mode_menu.update()
+        elif self.game_state == GameState.DIFFICULTY_SELECT:
+            self.difficulty_menu.update()
         elif self.game_state == GameState.PLAYING:
             if self.playing:
                 self.current_song_time += self.clock.get_time()
@@ -832,6 +861,8 @@ class Game:
             self.free_play_menu.draw(self.screen)
         elif self.game_state == GameState.STORY_MODE:
             self.story_mode_menu.draw(self.screen)
+        elif self.game_state == GameState.DIFFICULTY_SELECT:
+            self.difficulty_menu.draw(self.screen)
         elif self.game_state == GameState.PLAYING:
             self.draw_gameplay()
             self.draw_konami_message()
@@ -892,8 +923,12 @@ class Game:
         
         # Controls hint
         if self.game_state == GameState.PLAYING and not self.playing:
+            lane_hint = " / ".join(
+                binding_label(self.keybinds.get(action))
+                for action in LANE_ACTIONS
+            )
             hint_text = pygame.font.Font(None, 32).render(
-                "Press SPACE to start | w/a/s/d to play | ESC to pause",
+                f"Press SPACE to start | {lane_hint} to play | ESC to pause",
                 True,
                 (150, 150, 150)
             )

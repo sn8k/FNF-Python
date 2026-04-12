@@ -1,6 +1,13 @@
 # Changelog
 
 ## 2026-04-12
+- correction du hint ingame : les controles affiches utilisent maintenant les keybinds configures au lieu de `w/a/s/d` en dur
+- activation automatique de l'easter egg `AVRIL` tous les 1er avril
+- ajout d'un choix de difficulte avant lancement quand plusieurs variantes de chart existent
+- detection des difficultes via les suffixes `-easy`, `-hard`, et normalisation des fichiers sans suffixe en `normal`
+- affichage de la version projet dans le coin haut droit des options
+- ajout de `src/project_version.py` comme source de version locale
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:45:24 +02:00`
 - correction du layout du Chart Editor : les informations de chart, preview et controles sont regroupees dans un panneau bas unique pour eviter la superposition visible
 - note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:40:56 +02:00`
 - ajout de `menu.bat`, un menu Windows pour lancer le jeu, ouvrir le Chart Editor ou afficher les derniers logs

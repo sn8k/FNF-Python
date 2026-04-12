@@ -29,6 +29,9 @@
 - les champs optionnels `player` et `enemy` d'un chart pointent vers des dossiers de `assets/sprites/Characters/`
 - le joueur est le personnage de droite ; les frappes reussies doivent animer `self.player`, pas `self.opponent`
 - si aucun audio n'est trouve dans `assets/Songs/`, le gameplay doit continuer en mode muet avec un avertissement utilisateur et un detail debug
+- `ChartManager.get_song_names()` regroupe les charts par nom de chanson pour Free Play
+- `ChartManager.get_difficulties_for_song()` expose les variantes easy/normal/hard issues des suffixes de fichiers
+- un chart sans suffixe de difficulte est traite comme `normal`
 
 ## Configuration gameplay
 - `gameplay.spawn_distance` : distance visuelle entre le point d'apparition et la zone de frappe
@@ -46,6 +49,8 @@
 - `GameState.INTRO` heberge l'ecran d'intro ; `IntroScreen` vit dans `src.menu` et renvoie ensuite vers `GameState.MENU`
 - `MenuScreen` anime le logo a partir de `pygame.time.get_ticks()` avec une oscillation faible configuree par `data/config.json`
 - `MenuScreen` observe la sequence clavier `AVRIL` seulement sur le menu principal, puis deplace le bouton `QUIT` via une interpolation basee sur la vitesse de la souris en le clampant dans la fenetre
+- `MenuScreen.activate_avril_if_needed()` active automatiquement l'easter egg le 1er avril selon la date locale
+- `OptionsScreen` affiche `src.project_version.PROJECT_VERSION` en haut a droite
 - `src.keybinds` centralise le schema `key/scancode/display`, la migration legacy et le matching runtime ; le gameplay doit matcher les `scancode` quand SDL/Pygame les fournit, avec fallback sur `key` seulement en absence de scancode
 - `OptionsScreen.resolve_duplicate_keybinds()` echange les binds dupliques pour garder une lane unique par touche physique
 

@@ -22,6 +22,8 @@ class ChartEntry:
     key: str
     display_name: str
     path: Path
+    song_name: str = ""
+    difficulty: str = "normal"
 
 
 def get_chart_roots() -> list[Path]:
@@ -270,7 +272,7 @@ def _detect_difficulty(source_path: Path | None) -> str | None:
     for difficulty in DIFFICULTY_SUFFIXES:
         if lower_stem.endswith(f"-{difficulty}"):
             return difficulty
-    return None
+    return "normal"
 
 
 def _strip_difficulty_suffix(stem: str) -> str:

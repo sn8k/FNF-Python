@@ -1,6 +1,13 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- piege : le hint ingame affichait encore `w/a/s/d` en dur, ce qui contredisait les keybinds configurables
+- correction : `Game.draw_ui()` construit le hint avec `binding_label()` et les keybinds normalises en memoire
+- decision : le Free Play liste les chansons, puis un menu de difficulte apparait seulement quand plusieurs variantes existent
+- convention : les fichiers `*-easy.json` et `*-hard.json` declarent easy/hard ; le fichier sans suffixe est normal
+- correction : `MenuScreen` active automatiquement l'easter egg `AVRIL` le 1er avril via la date locale
+- decision : le numero de version projet vit dans `src/project_version.py` et est affiche dans `OptionsScreen`
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:45:24 +02:00`
 - piege : `draw_song_panel()` et `draw_ui()` dessinaient tous les deux dans la zone basse du Chart Editor, ce qui superposait les textes comme sur la capture utilisateur
 - correction : le Chart Editor reserve maintenant un panneau bas unique de statut/controles et limite les clics de notes a la zone de contenu au-dessus du panneau
 - verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:40:56 +02:00`

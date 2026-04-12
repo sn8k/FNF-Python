@@ -2,9 +2,11 @@
 Menu UI components and menu screens for FNF
 """
 import math
+from datetime import date
 import pygame
 from src.keybinds import binding_label, bindings_conflict, build_keybind_from_event, clone_keybind, default_keybind, normalize_keybind
 from src.logging_utils import get_debug_logger
+from src.project_version import PROJECT_VERSION
 from src.resources import get_resource_path
 
 
@@ -211,6 +213,7 @@ class MenuScreen:
         self.last_mouse_pos = pygame.math.Vector2(pygame.mouse.get_pos())
         self.last_mouse_ticks = pygame.time.get_ticks()
         self.mouse_velocity = pygame.math.Vector2()
+        self.activate_avril_if_needed()
         
         # Load background
         self.background = self.load_background(get_resource_path("assets", "sprites", "MenuBackGrounds", "Sticky.png"))
@@ -229,6 +232,13 @@ class MenuScreen:
         self.quit_button = self.buttons[-1]
         
         self.font_title = pygame.font.Font(None, 72)
+
+    def activate_avril_if_needed(self, today=None):
+        """Automatically activate the April easter egg every April 1st."""
+        current_day = today or date.today()
+        if not self.exit_evasion_active and current_day.month == 4 and current_day.day == 1:
+            self.exit_evasion_active = True
+            debug_logger.info("Easter egg AVRIL active automatiquement le 1er avril.")
         
     def load_background(self, path):
         """Load menu background"""
@@ -350,6 +360,7 @@ class MenuScreen:
     
     def update(self):
         """Update menu state"""
+        self.activate_avril_if_needed()
         self.update_exit_evasion()
 
 
@@ -638,6 +649,10 @@ class OptionsScreen:
         # Draw title
         title = self.font_title.render("OPTIONS", True, (100, 200, 255))
         surface.blit(title, (50, 50))
+
+        version_text = self.font_small.render(f"Version {PROJECT_VERSION}", True, (220, 220, 220))
+        version_rect = version_text.get_rect(topright=(1230, 50))
+        surface.blit(version_text, version_rect)
         
         # Draw volume section title
         vol_title = self.font_small.render("VOLUME", True, (150, 200, 255))
@@ -879,6 +894,69 @@ class SongListMenu:
     
     def update(self):
         """Update menu"""
+        pass
+
+
+class DifficultyMenu:
+    """Menu to select a difficulty for one song."""
+    def __init__(self, song_name, difficulties, on_difficulty_select, on_back):
+        self.song_name = song_name
+        self.difficulties = difficulties
+        self.on_difficulty_select = on_difficulty_select
+        self.on_back = on_back
+
+        self.background = self.load_background(get_resource_path("assets", "sprites", "MenuBackGrounds", "Drako.png"))
+        self.buttons = []
+        width, height = 360, 60
+        center_x = 640 - width // 2
+        for i, entry in enumerate(difficulties):
+            y = 180 + i * 80
+            label = entry.difficulty.upper()
+            self.buttons.append(
+                Button(center_x, y, width, height, label, lambda chart_key=entry.key: self.on_difficulty_select(chart_key))
+            )
+        self.back_button = Button(50, 650, 200, 50, "BACK", self.on_back)
+        self.font_title = pygame.font.Font(None, 56)
+
+    def load_background(self, path):
+        """Load background"""
+        try:
+            bg = pygame.image.load(path)
+            bg = pygame.transform.scale(bg, (1280, 720))
+            return bg
+        except pygame.error:
+            default = pygame.Surface((1280, 720))
+            default.fill((20, 20, 40))
+            return default
+
+    def handle_events(self, events):
+        """Handle input events"""
+        mouse_pos = pygame.mouse.get_pos()
+        for event in events:
+            if event.type == pygame.MOUSEMOTION:
+                for button in self.buttons:
+                    button.update(mouse_pos)
+                self.back_button.update(mouse_pos)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                for button in self.buttons:
+                    button.handle_click(mouse_pos)
+                self.back_button.handle_click(mouse_pos)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.on_back()
+
+    def draw(self, surface):
+        """Draw the menu."""
+        surface.blit(self.background, (0, 0))
+        title = self.font_title.render(f"DIFFICULTY: {self.song_name}", True, (100, 200, 255))
+        title_rect = title.get_rect(center=(640, 100))
+        surface.blit(title, title_rect)
+        for button in self.buttons:
+            button.draw(surface)
+        self.back_button.draw(surface)
+
+    def update(self):
+        """Update menu."""
         pass
 
 

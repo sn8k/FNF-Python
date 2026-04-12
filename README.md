@@ -136,6 +136,7 @@ When you launch the game, you'll see the main menu with three options:
 
 The title on the frontpage has a light idle animation so the menu feels less static.
 Type `AVRIL` on the main menu to enable the April easter egg: the **QUIT** button flees from the mouse, stays inside the window, and moves faster when the mouse moves faster.
+The same easter egg is enabled automatically on April 1st.
 
 ### Play Menu
 After selecting PLAY, choose your mode:
@@ -145,9 +146,11 @@ After selecting PLAY, choose your mode:
 
 #### Free Play Mode
 - See a list of all available songs
-- Select any song to play immediately
+- Select any song, then choose a difficulty when several chart files exist
 - Click BACK to choose a different song or mode
 - Press ESC to return to play menu
+
+Difficulty detection uses file names when available: `song-easy.json` is **EASY**, `song-hard.json` is **HARD**, and `song.json` is **NORMAL**.
 
 #### Story Mode
 - See a list of all available weeks (level packs)
@@ -160,6 +163,8 @@ After selecting PLAY, choose your mode:
 - **Q/S/Z/D**: Same default physical lane keys on AZERTY
 - **SPACE**: Start/pause the chart and loaded song audio
 - **ESC**: Open the pause menu
+
+The in-game start hint displays the keybinds currently saved in `data/settings.json`.
 
 ### Pause Menu
 - **RESUME**: Return to the current chart without resetting score, combo, timing or spawned notes
@@ -179,7 +184,7 @@ The sequence resets if you leave ingame contexts or if the game window loses foc
 
 ### Options Menu
 
-The Options menu allows you to customize your gameplay experience:
+The Options menu allows you to customize your gameplay experience. The project version is shown at the top right of the options screen.
 
 #### Volume Control
 Three separate volume sliders:
