@@ -7,3 +7,27 @@
 - correction : ajout d'un bloc `logging` dans `data/config.json`
 - piege : l'etat Git n'est pas verifiable dans cet environnement car la commande `git` est indisponible
 - consequence : ne pas inventer de revision ou de commit dans la documentation de travail
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 03:43:42 +02:00`
+- correction de connaissance : dans cet environnement de reprise, `git` est disponible et `git status --short --branch` a ete execute avec succes
+- piege : `python -m src.chart_editor` importait le module puis quittait sans ouvrir l'editeur, faute de bloc `if __name__ == "__main__"`
+- correction : ajout d'un point d'entree `main()` pour l'editeur de charts et conservation d'un fallback sans preview sonore si le mixer audio echoue
+- piege : `python -m src.week_manager` ne produisait aucune verification visible, car le module ne possedait pas de point d'entree CLI
+- correction : ajout d'un point d'entree listant les weeks et charts disponibles via les logs utilisateur
+- piege : le jeu chargeait les charts en partie sans charger de MP3, OGG ou WAV correspondant
+- correction : `Game.play_song()` cherche maintenant un audio via le champ optionnel `audio`, puis via `assets/Songs/<chart>` et `assets/Songs/<name>`
+- piege : le spawn des notes transmettait seulement `gameplay` a `Note`, sans `note_size`, et utilisait une fenetre de spawn exprimee en secondes comparee a des millisecondes
+- correction : le spawn transmet une configuration combinee et utilise `gameplay.note_approach_time_ms` pour faire arriver les notes sur la zone de frappe au temps cible
+- impact : un chart sans audio reste jouable en mode muet ; un chart avec audio correspondant charge le fichier et le demarre avec `SPACE`
+- piege : un build PyInstaller one-file rendrait les donnees customisables moins visibles et moins pratiques a modifier
+- correction : choix documente du mode one-folder avec `assets/`, `data/` et `DOCS/` inclus comme dossiers redistribuables
+- piege : les artefacts PyInstaller peuvent polluer le depot et masquer les vrais changements
+- correction : ajout d'exclusions Git pour `build/`, `dist/`, `artifacts/`, caches Python et logs generes
+- piege : avec PyInstaller 6.3, placer `contents_directory="."` sur `COLLECT(...)` ne supprime pas `_internal`
+- correction : `contents_directory="."` est place sur `EXE(...)`, ce qui met les donnees redistribuables au niveau racine du dossier `dist`
+- piege : `Compress-Archive` peut echouer juste apres PyInstaller si Windows garde `base_library.zip` verrouille
+- correction : le script de build retente l'archivage plusieurs fois avec un court delai
+- verification : les builds release et debug generent `dist/` et `artifacts/`, les dossiers `assets`, `data` et `DOCS` sont presents a la racine des redistribuables
+- verification : les warnings PyInstaller restants ont ete lus ; ils concernent des modules de plateforme absents sous Windows ou des modules optionnels de Pygame non utilises
+- piege : ajouter une regle `.gitignore` ne retire pas les fichiers deja suivis par Git
+- correction : retirer les caches Python et logs generes de l'index avec `git rm --cached` quand ils sont deja versionnes
+- verification : la date `2026-04-12` a ete reverifiee localement avec `Get-Date -Format yyyy-MM-dd`

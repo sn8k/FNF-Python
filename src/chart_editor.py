@@ -3,8 +3,13 @@ FNF-Style Chart Editor for FNF Lightweight
 Run: python -m src.chart_editor
 """
 import json
+import sys
 import pygame
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.logging_utils import configure_logging, get_debug_logger, get_user_logger
 from src.resources import get_resource_path
 
@@ -17,7 +22,7 @@ class ChartEditor:
     """FNF-style GUI chart editor with song preview and upscroll playback"""
     def __init__(self, chart_file=None):
         pygame.init()
-        pygame.mixer.init()
+        self.audio_available = self.init_audio()
 
         self.chart_file = Path(chart_file or get_resource_path("data", "charts", "test_song.json"))
 
@@ -67,6 +72,16 @@ class ChartEditor:
         if self.song_files:
             self.load_song(self.selected_song_index)
 
+    def init_audio(self):
+        """Initialize audio without blocking the editor if the mixer is unavailable."""
+        try:
+            pygame.mixer.init()
+            return True
+        except pygame.error as error:
+            user_logger.warning("Audio indisponible, editeur lance sans preview sonore.")
+            debug_logger.warning("Initialisation audio de l'editeur impossible: %s", error)
+            return False
+
     def load_chart(self):
         """Load chart from file"""
         if self.chart_file.exists():
@@ -92,7 +107,11 @@ class ChartEditor:
         song_dir = get_resource_path("assets", "Songs")
         if not song_dir.exists():
             return []
-        files = sorted(song_dir.glob("*.mp3")) + sorted(song_dir.glob("*.wav"))
+        files = (
+            sorted(song_dir.glob("*.mp3"))
+            + sorted(song_dir.glob("*.ogg"))
+            + sorted(song_dir.glob("*.wav"))
+        )
         return [str(path) for path in files]
 
     def load_song(self, index):
@@ -101,6 +120,10 @@ class ChartEditor:
             return
         self.loaded_song_path = self.song_files[index]
         self.song_name = Path(self.loaded_song_path).stem
+        if not self.audio_available:
+            self.song_name = f"{self.song_name} (audio disabled)"
+            return
+
         try:
             pygame.mixer.music.load(self.loaded_song_path)
             pygame.mixer.music.set_volume(0.8)
@@ -112,7 +135,7 @@ class ChartEditor:
 
     def start_playback(self):
         """Start or resume audio playback"""
-        if not self.loaded_song_path:
+        if not self.audio_available or not self.loaded_song_path:
             return
 
         if self.playing and not self.paused:
@@ -132,7 +155,7 @@ class ChartEditor:
 
     def pause_playback(self):
         """Pause audio playback"""
-        if self.playing and not self.paused:
+        if self.audio_available and self.playing and not self.paused:
             pygame.mixer.music.pause()
             self.current_time_ms = pygame.time.get_ticks() - self.play_start_ticks
             self.playing = False
@@ -140,7 +163,8 @@ class ChartEditor:
 
     def stop_playback(self):
         """Stop playback and reset"""
-        pygame.mixer.music.stop()
+        if self.audio_available:
+            pygame.mixer.music.stop()
         self.current_time_ms = 0
         self.playing = False
         self.paused = False
@@ -239,14 +263,17 @@ class ChartEditor:
         pygame.draw.rect(self.screen, panel_color, (0, self.config['height'] - panel_height, self.config['width'], panel_height))
 
         font = pygame.font.Font(None, 28)
-        small_font = pygame.font.Font(None, 22)
 
         song_text = f"Loaded song: {self.song_name}"
         status_text = "PLAYING" if self.playing and not self.paused else "PAUSED" if self.paused else "STOPPED"
+        song_selection = (
+            f"{self.selected_song_index + 1}/{len(self.song_files)}"
+            if self.song_files else "0/0"
+        )
         info_texts = [
             song_text,
             f"Status: {status_text} | Mode: {self.preview_mode}",
-            f"Song selection: {self.selected_song_index + 1}/{len(self.song_files)}",
+            f"Song selection: {song_selection}",
             "TAB: next song | SHIFT+TAB: prev song | ENTER: load song | SPACE: play/pause",
         ]
 
@@ -376,4 +403,15 @@ class ChartEditor:
             self.update_time()
             self.draw()
             self.clock.tick(60)
-        pygame.mixer.music.stop()
+        if self.audio_available:
+            pygame.mixer.music.stop()
+
+
+def main():
+    chart_file = sys.argv[1] if len(sys.argv) > 1 else None
+    editor = ChartEditor(chart_file)
+    editor.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -2,8 +2,6 @@
 Menu UI components and menu screens for FNF
 """
 import pygame
-from pathlib import Path
-from src.settings import Settings
 from src.logging_utils import get_debug_logger
 from src.resources import get_resource_path
 
@@ -536,7 +534,7 @@ class SongListMenu:
         self.song_buttons = []
         for i, song in enumerate(songs):
             y = 100 + i * 80
-            btn = Button(100, y, 800, 60, f"♪ {song}", 
+            btn = Button(100, y, 800, 60, f"* {song}",
                         lambda s=song: self.on_song_select(s))
             self.song_buttons.append(btn)
         
@@ -605,7 +603,7 @@ class WeekListMenu:
         self.week_buttons = []
         for i, week in enumerate(weeks):
             y = 100 + i * 80
-            btn = Button(100, y, 800, 60, f"📅 {week}", 
+            btn = Button(100, y, 800, 60, f"Week: {week}",
                         lambda w=week: self.on_week_select(w))
             self.week_buttons.append(btn)
         

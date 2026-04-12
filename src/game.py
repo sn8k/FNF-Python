@@ -5,7 +5,7 @@ import pygame
 import json
 from enum import Enum
 from pathlib import Path
-from src.logging_utils import get_debug_logger, load_project_config
+from src.logging_utils import get_debug_logger, get_user_logger, load_project_config
 from src.resources import get_resource_path
 from src.sprites import Note, HitZone, Character, NoteType, FloatingScore
 from src.settings import Settings
@@ -13,6 +13,8 @@ from src.menu import MenuScreen, OptionsScreen, PlayMenu, SongListMenu, WeekList
 from src.week_manager import WeekManager, ChartManager
 
 
+SUPPORTED_AUDIO_EXTENSIONS = (".mp3", ".ogg", ".wav")
+user_logger = get_user_logger("game")
 debug_logger = get_debug_logger("game")
 
 class GameState(Enum):
@@ -103,6 +105,10 @@ class Game:
         self.song_start_time = 0
         self.playing = False
         self.paused = False
+        self.spawned_notes = set()
+        self.current_audio_path = None
+        self.audio_loaded = False
+        self.audio_started = False
         
         self.score = 0
         self.combo = 0
@@ -126,7 +132,9 @@ class Game:
     
     def play_song(self, song_name):
         """Start playing a specific song"""
+        self.stop_song_playback()
         self.init_game_state()
+        self.setup_sprites()
         chart_path = get_resource_path("data", "charts", f"{song_name}.json")
         if chart_path.exists():
             with open(chart_path, 'r', encoding="utf-8") as f:
@@ -137,7 +145,150 @@ class Game:
                 "Chart introuvable pour '%s', chargement du chart par defaut.", song_name
             )
             self.load_chart()
+        self.load_song_audio(song_name)
         self.game_state = GameState.PLAYING
+
+    def get_music_volume(self):
+        """Return the configured music volume as a pygame float."""
+        def normalize(value, default):
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                numeric = default
+            return max(0.0, min(100.0, numeric))
+
+        master = normalize(self.settings.get("volume.master", 70), 70)
+        music = normalize(self.settings.get("volume.music", 70), 70)
+        return (master / 100.0) * (music / 100.0)
+
+    def ensure_mixer_ready(self):
+        """Initialize pygame mixer when audio playback is requested."""
+        if pygame.mixer.get_init():
+            return True
+
+        try:
+            pygame.mixer.init()
+            return True
+        except pygame.error as error:
+            user_logger.warning("Audio indisponible, lecture du chart en mode muet.")
+            debug_logger.warning("Initialisation audio impossible: %s", error)
+            return False
+
+    def find_song_audio_path(self, song_name):
+        """Find the audio file matching a chart or its optional audio field."""
+        song_dir = get_resource_path("assets", "Songs")
+        candidates = []
+
+        def add_candidate(path):
+            if path not in candidates:
+                candidates.append(path)
+
+        explicit_audio = self.chart.get("audio")
+        if explicit_audio:
+            explicit_path = Path(explicit_audio)
+            if explicit_path.is_absolute():
+                user_logger.warning("Chemin audio absolu ignore dans le chart.")
+                debug_logger.warning(
+                    "Chemin audio absolu ignore pour '%s': %s",
+                    song_name,
+                    explicit_audio,
+                )
+            elif explicit_path.suffix:
+                add_candidate(get_resource_path(*explicit_path.parts))
+                if len(explicit_path.parts) == 1:
+                    add_candidate(song_dir / explicit_path.name)
+            else:
+                relative_base = get_resource_path(*explicit_path.parts)
+                for extension in SUPPORTED_AUDIO_EXTENSIONS:
+                    add_candidate(relative_base.with_suffix(extension))
+                    if len(explicit_path.parts) == 1:
+                        add_candidate(song_dir / f"{explicit_audio}{extension}")
+
+        chart_names = [song_name, self.chart.get("name")]
+        for chart_name in chart_names:
+            if not chart_name:
+                continue
+            for extension in SUPPORTED_AUDIO_EXTENSIONS:
+                add_candidate(song_dir / f"{chart_name}{extension}")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return None
+
+    def load_song_audio(self, song_name):
+        """Load the audio file for the current chart when available."""
+        self.stop_song_playback()
+        self.current_audio_path = self.find_song_audio_path(song_name)
+        self.audio_loaded = False
+        self.audio_started = False
+
+        if not self.current_audio_path:
+            user_logger.warning("Aucun fichier audio trouve pour le chart '%s'.", song_name)
+            debug_logger.warning(
+                "Audio introuvable pour '%s' dans assets/Songs ou via le champ audio.",
+                song_name,
+            )
+            return
+
+        if not self.ensure_mixer_ready():
+            return
+
+        try:
+            pygame.mixer.music.load(str(self.current_audio_path))
+            pygame.mixer.music.set_volume(self.get_music_volume())
+            self.audio_loaded = True
+            user_logger.info("Audio charge: %s", self.current_audio_path.name)
+            debug_logger.info("Audio charge depuis %s", self.current_audio_path)
+        except pygame.error as error:
+            user_logger.warning("Impossible de charger l'audio du chart '%s'.", song_name)
+            debug_logger.warning(
+                "Chargement audio echoue pour %s: %s",
+                self.current_audio_path,
+                error,
+            )
+            self.current_audio_path = None
+
+    def start_song_playback(self):
+        """Start or resume chart timing and music playback."""
+        if self.audio_loaded:
+            try:
+                pygame.mixer.music.set_volume(self.get_music_volume())
+                if self.audio_started and self.paused:
+                    pygame.mixer.music.unpause()
+                elif not self.audio_started:
+                    pygame.mixer.music.play()
+                    self.audio_started = True
+            except pygame.error as error:
+                user_logger.warning("Audio coupe, le chart continue en mode muet.")
+                debug_logger.warning("Lecture audio interrompue: %s", error)
+                self.audio_loaded = False
+
+        self.playing = True
+        self.paused = False
+
+    def pause_song_playback(self):
+        """Pause chart timing and music playback."""
+        if self.audio_loaded and self.audio_started:
+            try:
+                pygame.mixer.music.pause()
+            except pygame.error as error:
+                debug_logger.warning("Pause audio impossible: %s", error)
+        self.playing = False
+        self.paused = True
+
+    def stop_song_playback(self):
+        """Stop music playback and leave gameplay state cleanly."""
+        if self.audio_loaded and pygame.mixer.get_init():
+            try:
+                pygame.mixer.music.stop()
+            except pygame.error as error:
+                debug_logger.warning("Arret audio impossible: %s", error)
+        self.playing = False
+        self.paused = False
+        self.audio_loaded = False
+        self.audio_started = False
+        self.current_audio_path = None
     
     def show_play_menu(self):
         """Show the play menu (Free Play / Story Mode)"""
@@ -194,6 +345,7 @@ class Game:
     
     def quit_game(self):
         """Quit the game"""
+        self.stop_song_playback()
         self.running = False
         self.game_state = GameState.QUIT
         
@@ -278,9 +430,13 @@ class Game:
             for event in events:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
+                        self.stop_song_playback()
                         self.game_state = GameState.MENU
                     elif event.key == pygame.K_SPACE:
-                        self.playing = not self.playing
+                        if self.playing:
+                            self.pause_song_playback()
+                        else:
+                            self.start_song_playback()
                     elif event.key in self.key_map:
                         lane = self.key_map[event.key]
                         self.keys_pressed[lane] = True
@@ -349,28 +505,37 @@ class Game:
     
     def spawn_notes(self):
         """Spawn notes based on chart and current time"""
-        spawn_distance = self.config['gameplay']['spawn_distance']
+        gameplay_config = self.config['gameplay']
+        approach_time_ms = max(1, int(gameplay_config.get("note_approach_time_ms", 1500)))
+        note_config = {
+            **gameplay_config,
+            "note_size": self.config["note_size"],
+            "hit_zone_y": self.hit_zone_y,
+        }
         
         for note_data in self.chart['notes']:
-            note_time = note_data['time']
-            lane = note_data['lane']
+            try:
+                note_time = int(note_data['time'])
+                lane = int(note_data['lane'])
+            except (KeyError, TypeError, ValueError):
+                debug_logger.warning("Note invalide ignoree: %s", note_data)
+                continue
+
+            if lane < 0 or lane >= self.config['lanes']:
+                debug_logger.warning("Lane invalide ignoree pour la note: %s", note_data)
+                continue
             
             # Check if this note should be spawned
             time_until_hit = note_time - self.current_song_time
-            time_to_spawn = spawn_distance / 1000
-            
-            # Only spawn notes that haven't been spawned yet
-            if not hasattr(self, 'spawned_notes'):
-                self.spawned_notes = set()
             
             note_id = (note_time, lane)
-            if note_id not in self.spawned_notes and 0 < time_until_hit < time_to_spawn + 0.5:
+            if note_id not in self.spawned_notes and 0 <= time_until_hit <= approach_time_ms:
                 note = Note(
                     self.hit_zones[lane][0],
-                    -spawn_distance,
+                    self.hit_zone_y - gameplay_config['spawn_distance'],
                     NoteType(lane),
                     note_time,
-                    self.config['gameplay']
+                    note_config
                 )
                 self.all_sprites.add(note)
                 self.notes_group.add(note)
@@ -400,7 +565,8 @@ class Game:
             
             # Check for missed notes
             for note in self.notes_group:
-                if note.missed and not note.hit:
+                if note.missed and not note.hit and not note.miss_counted:
+                    note.miss_counted = True
                     self.hit_count['miss'] += 1
                     self.combo = 0
             

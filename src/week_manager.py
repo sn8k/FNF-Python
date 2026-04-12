@@ -2,8 +2,13 @@
 Week/Level Pack management for story mode
 """
 import json
+import sys
 from pathlib import Path
-from src.logging_utils import get_debug_logger, get_user_logger
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.logging_utils import configure_logging, get_debug_logger, get_user_logger
 from src.resources import get_resource_path
 
 
@@ -106,10 +111,11 @@ class ChartManager:
         charts = []
         for chart_file in self.charts_path.glob("*.json"):
             try:
-                with open(chart_file, 'r') as f:
+                with open(chart_file, 'r', encoding="utf-8") as f:
                     data = json.load(f)
                     charts.append(data.get("name", chart_file.stem))
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, OSError):
+                debug_logger.warning("Chart illisible ignore dans la liste: %s", chart_file)
                 charts.append(chart_file.stem)
         return sorted(charts)
     
@@ -122,11 +128,35 @@ class ChartManager:
         # Try to find by display name
         for chart_file in self.charts_path.glob("*.json"):
             try:
-                with open(chart_file, 'r') as f:
+                with open(chart_file, 'r', encoding="utf-8") as f:
                     data = json.load(f)
                     if data.get("name") == chart_name:
                         return chart_file.stem
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, OSError):
                 pass
         
         return chart_name
+
+
+def main():
+    """CLI smoke entry point for week and chart discovery."""
+    configure_logging()
+    week_manager = WeekManager()
+    chart_manager = ChartManager()
+
+    week_names = week_manager.get_week_names()
+    chart_names = chart_manager.get_chart_names()
+
+    if week_names:
+        user_logger.info("Weeks disponibles: %s", ", ".join(week_names))
+    else:
+        user_logger.info("Aucune week disponible dans data/weeks.")
+
+    if chart_names:
+        user_logger.info("Charts disponibles: %s", ", ".join(chart_names))
+    else:
+        user_logger.info("Aucun chart disponible dans data/charts.")
+
+
+if __name__ == "__main__":
+    main()

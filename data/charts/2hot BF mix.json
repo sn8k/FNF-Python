@@ -1,7 +1,9 @@
 {
   "name": "2hot BF mix",
   "artist": "FNF Cover",
+  "audio": "assets/Songs/2hot BF mix.mp3",
   "bpm": 200,
+  "offset": 0,
   "notes": [
     {
       "time": 1000,

@@ -1,9 +1,32 @@
 # Changelog
 
 ## 2026-04-12
+- correction du lancement de `python -m src.chart_editor` par ajout d'un point d'entree `main()`
+- ajout d'un fallback audio dans l'editeur de charts : l'editeur reste utilisable si `pygame.mixer` est indisponible
+- ajout d'un point d'entree CLI a `python -m src.week_manager` pour verifier les weeks et charts disponibles
+- correction du chargement audio en jeu : recherche d'un fichier relatif via `audio`, puis dans `assets/Songs/` en `.mp3`, `.ogg` ou `.wav`
+- ajout de `gameplay.note_approach_time_ms` dans `data/config.json` pour configurer le temps d'approche des notes
+- correction du spawn des notes en jeu : configuration complete transmise a `Note`, timing en millisecondes et reset des notes par chart
+- alignement de `data/charts/2hot BF mix.json` avec le schema documente par ajout de `audio` et `offset`
+- ajout de `requirements-dev.txt` avec la dependance PyInstaller
+- alignement de `requirements.txt` sur `pygame>=2.5.0`
+- ajout des specs `packaging/pyinstaller/fnf_release.spec` et `packaging/pyinstaller/fnf_debug.spec`
+- ajout des scripts `scripts/build.ps1`, `scripts/build_release.bat` et `scripts/build_debug.bat`
+- ajout d'une archive redistribuable automatique dans `artifacts/` apres build
+- ajout d'un retry d'archivage pour les verrous temporaires Windows apres PyInstaller
+- reduction des warnings et de la taille PyInstaller par exclusion de paquets optionnels non utilises
+- ajout d'un `.gitignore` pour les artefacts de build, caches Python et logs generes
+- mise a jour de `README.md`, `DOCS/USER_BIBLE.md`, `DOCS/DEVELOPER_BIBLE.md` et `DOCS/KNOWLEDGE_LOG.md`
+- deplacement des rapports traites vers `BUGS/Fixed/`
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `03:43:42 +02:00`
+- note de verification : `git status --short --branch` a ete execute avec succes dans cet environnement
 - mise en place d'un systeme de logs central configurable via `data/config.json`
 - ajout de deux canaux de logs distincts : `user` et `debug`
 - migration des sorties `print()` principales vers le systeme de logs dans `main.py`, `setup_check.py` et les modules `src/`
 - ajout d'une documentation projet minimale sur la politique de logs dans `DOCS/`
 - note de verification : la date `2026-04-12` a ete verifiee localement via la commande systeme
 - note de verification : l'etat Git n'a pas pu etre verifie dans cet environnement car `git` n'etait pas disponible
+- ajout d'un `.gitignore` pour les caches Python, environnements virtuels, logs generes, secrets locaux, caches d'outils et sorties de build
+- retrait de l'index Git des caches Python et logs generes deja suivis, sans suppression locale des fichiers
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date -Format yyyy-MM-dd`
+- note de verification : les regles `.gitignore` ont ete verifiees avec `git check-ignore`

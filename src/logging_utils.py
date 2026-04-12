@@ -27,6 +27,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "great_range": 50,
         "good_range": 100,
         "bad_range": 150,
+        "note_approach_time_ms": 1500,
     },
     "scoring": {
         "perfect": 350,

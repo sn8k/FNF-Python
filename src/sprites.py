@@ -3,7 +3,6 @@ Sprite classes for FNF game - Notes, Players, UI elements
 """
 import pygame
 from enum import Enum
-from pathlib import Path
 from src.logging_utils import get_debug_logger
 from src.resources import get_resource_path
 
@@ -36,21 +35,24 @@ class Note(pygame.sprite.Sprite):
         
         self.hit = False
         self.missed = False
+        self.miss_counted = False
         
     def update(self, current_time):
         """Update note position based on time"""
         spawn_distance = self.config['spawn_distance']
         hit_window = self.config['hit_window']
+        approach_time_ms = max(1, int(self.config.get('note_approach_time_ms', 1500)))
+        hit_zone_y = self.config.get('hit_zone_y', self.rect.centery + spawn_distance)
         
-        # Calculate elapsed time since note spawn
-        elapsed = current_time - self.spawn_time
+        # spawn_time is the target hit time stored in the chart.
+        time_until_hit = self.spawn_time - current_time
+        progress = 1 - (time_until_hit / approach_time_ms)
         
-        # Calculate Y position (notes fall down)
-        total_fall_time = spawn_distance / 1000  # milliseconds
-        self.rect.y = -spawn_distance + (elapsed / 1000) * spawn_distance
+        # Place the note above the hit zone, then land on it at the chart time.
+        self.rect.centery = hit_zone_y - spawn_distance + (progress * spawn_distance)
         
         # Mark as missed if it passed the hit zone
-        if elapsed > (total_fall_time * 1000 + hit_window * 2) and not self.hit:
+        if current_time - self.spawn_time > hit_window and not self.hit:
             self.missed = True
     
     def get_offset(self, current_time):
@@ -175,7 +177,7 @@ class FloatingScore(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
         
-    def update(self):
+    def update(self, *_):
         """Update position and lifetime"""
         elapsed = pygame.time.get_ticks() - self.start_time
         

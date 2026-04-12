@@ -27,7 +27,10 @@ A lightweight Python Pygame implementation of Friday Night Funkin' with basic ga
 fnf python/
 ├── main.py                 # Entry point
 ├── requirements.txt        # Python dependencies
+├── requirements-dev.txt    # Build dependencies
 ├── README.md              # This file
+├── scripts/               # Build scripts
+├── packaging/             # PyInstaller specs
 ├── src/
 │   ├── __init__.py
 │   ├── game.py            # Core game logic and state management
@@ -45,6 +48,7 @@ fnf python/
 │   └── weeks/             # Level packs/weeks
 │       └── (created by week editor)
 └── assets/
+    ├── Songs/             # Song audio files (.mp3, .ogg, .wav)
     └── sprites/
         ├── Characters/    # Player and Enemy sprites
         ├── MenuBackGrounds/ # Menu background images (Sticky.png, Drako.png, etc.)
@@ -144,7 +148,7 @@ After selecting PLAY, choose your mode:
 
 ### Controls During Gameplay
 - **W/A/S/D**: Hit notes in lanes (Up/Left/Down/Right)
-- **SPACE**: Start/pause the song
+- **SPACE**: Start/pause the chart and loaded song audio
 - **ESC**: Return to main menu
 
 ### Options Menu
@@ -180,16 +184,19 @@ All settings are automatically saved when you return to the main menu.
 ### Gameplay
 
 When you start a game:
-1. Colored notes fall down the screen
-2. Hit each note when it reaches the hit zone (green border)
-3. Timing accuracy affects scoring:
+1. The game loads the chart JSON and tries to load matching audio from `assets/Songs/`
+2. Colored notes fall down the screen
+3. Hit each note when it reaches the hit zone (green border)
+4. Timing accuracy affects scoring:
    - **Perfect** (25ms): 350 points
    - **Great** (50ms): 200 points
    - **Good** (100ms): 100 points
    - **Bad** (150ms): 0 points
    - **Miss**: 0 points and combo breaks
 
-4. Maintain combos for a high score!
+If no audio file is found, the chart remains playable in muted fallback mode and a warning is written to the logs.
+
+5. Maintain combos for a high score!
 
 ## Chart Editor
 
@@ -200,14 +207,29 @@ python -m src.chart_editor
 ```
 
 ### Editor Controls
-- **SPACE**: Add note at current time/lane
-- **DELETE**: Remove note at current time/lane
-- **ARROW KEYS**: Navigate (Left/Right for lanes, Up/Down for timeline)
-- **C**: Clear all notes
+- **Left/Right**: Scroll the timeline
+- **Up/Down**: Zoom the timeline
+- **Left Click**: Add a note in the clicked lane and snapped time
+- **Right Click**: Delete a nearby note in the clicked lane
+- **Mouse Wheel**: Scroll the timeline
+- **TAB / SHIFT+TAB**: Select next or previous audio file
+- **ENTER**: Reload selected audio file
+- **SPACE**: Play/pause audio preview when audio is available
+- **SHIFT+C**: Clear all notes
 - **CTRL+S**: Save chart
 - **ESC**: Exit editor
 
 Charts are saved as JSON files in `data/charts/`
+
+## Week Manager
+
+Check week and chart discovery from the command line:
+
+```bash
+python -m src.week_manager
+```
+
+The command lists available weeks from `data/weeks/` and available charts from `data/charts/`.
 
 ## Week Editor
 
@@ -240,6 +262,7 @@ Weeks are saved as JSON files in `data/weeks/`
 ```json
 {
   "name": "My Song",
+  "audio": "assets/Songs/My Song.mp3",
   "bpm": 120,
   "offset": 0,
   "notes": [
@@ -251,8 +274,9 @@ Weeks are saved as JSON files in `data/weeks/`
 }
 ```
 
-- **time**: Note spawn time in milliseconds
+- **time**: Target hit time in milliseconds
 - **lane**: Lane number (0-3 for Left, Down, Up, Right)
+- **audio**: Optional relative path or filename for the song audio. If omitted, the game tries `assets/Songs/<chart file name>` and `assets/Songs/<chart name>` with `.mp3`, `.ogg`, then `.wav`.
 
 ## Customization
 
@@ -298,7 +322,8 @@ Edit `data/config.json` for advanced settings:
     "perfect_range": 25,
     "great_range": 50,
     "good_range": 100,
-    "bad_range": 150
+    "bad_range": 150,
+    "note_approach_time_ms": 1500
   },
   "scoring": {
     "perfect": 350,
@@ -329,6 +354,7 @@ Edit `data/config.json` for advanced settings:
 
 - **spawn_distance**: How far above the hit zone notes appear
 - **hit_window**: Total milliseconds for valid hits
+- **note_approach_time_ms**: Time notes spend travelling toward the hit zone
 - **Hit ranges**: Timing windows for each accuracy level
 - **scoring**: Points awarded for each accuracy
 - **logging.directory**: Folder where log files are written
@@ -366,13 +392,45 @@ Manual settings are stored in `data/settings.json`:
 
 You can edit this directly, or use the Options menu (recommended).
 
+## Redistributable Builds
+
+The project can generate Windows redistributables with PyInstaller. Builds use one-folder mode so `assets/`, `data/`, and `DOCS/` remain visible and editable in the output folder.
+
+### Release Build
+
+```bash
+scripts\build_release.bat -Clean
+```
+
+Outputs:
+- `dist/FNF-Python-release/FNF-Python.exe`
+- `artifacts/FNF-Python-release.zip`
+
+### Debug Build
+
+```bash
+scripts\build_debug.bat -Clean
+```
+
+Outputs:
+- `dist/FNF-Python-debug/FNF-Python-Debug.exe`
+- `artifacts/FNF-Python-debug.zip`
+
+### Build Both Variants
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1 -Configuration all -Clean
+```
+
+The build script installs runtime dependencies from `requirements.txt` and build dependencies from `requirements-dev.txt` unless `-SkipInstall` is passed. Use `-NoArchive` to keep only the folders in `dist/`.
+
 ## Future Enhancements
 
 - [ ] Multiple song support with song select screen
 - [ ] Difficulty levels
 - [ ] Health system
 - [ ] Animations for character movements
-- [ ] Sound effects and music playback
+- [ ] Sound effects for hit/miss feedback
 - [ ] Score leaderboards
 - [ ] Different game modes (story, free play, etc.)
 - [ ] Multiplayer support
