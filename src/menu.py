@@ -272,7 +272,7 @@ class MenuScreen:
                 self.update_mouse_velocity(event.pos)
                 for button in self.buttons:
                     button.update(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.exit_evasion_active:
                     self.update_exit_evasion(force=True)
                     mouse_pos = pygame.mouse.get_pos()
@@ -527,7 +527,7 @@ class OptionsScreen:
                 self.back_button.update(mouse_pos)
                 self.reset_button.update(mouse_pos)
                 
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # Check sliders
                 for slider in self.sliders:
                     if slider.handle_click(mouse_pos):
@@ -747,7 +747,7 @@ class PlayMenu:
             if event.type == pygame.MOUSEMOTION:
                 for button in self.buttons:
                     button.update(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for button in self.buttons:
                     button.handle_click(mouse_pos)
             elif event.type == pygame.KEYDOWN:
@@ -799,7 +799,7 @@ class PauseMenu:
             if event.type == pygame.MOUSEMOTION:
                 for button in self.buttons:
                     button.update(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for button in self.buttons:
                     button.handle_click(mouse_pos)
             elif event.type == pygame.KEYDOWN:
@@ -870,7 +870,7 @@ class SongListMenu:
                 for button in self.song_buttons:
                     button.update(mouse_pos)
                 self.back_button.update(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for button in self.song_buttons:
                     button.handle_click(mouse_pos)
                 self.back_button.handle_click(mouse_pos)
@@ -937,7 +937,7 @@ class DifficultyMenu:
                 for button in self.buttons:
                     button.update(mouse_pos)
                 self.back_button.update(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for button in self.buttons:
                     button.handle_click(mouse_pos)
                 self.back_button.handle_click(mouse_pos)
@@ -1002,7 +1002,7 @@ class WeekListMenu:
                 for button in self.week_buttons:
                     button.update(mouse_pos)
                 self.back_button.update(mouse_pos)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for button in self.week_buttons:
                     button.handle_click(mouse_pos)
                 self.back_button.handle_click(mouse_pos)
@@ -1027,3 +1027,4 @@ class WeekListMenu:
     def update(self):
         """Update menu"""
         pass
+

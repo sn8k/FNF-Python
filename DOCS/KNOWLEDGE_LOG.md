@@ -1,6 +1,9 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- piege : sous Pygame, la molette peut arriver comme un `MOUSEBUTTONDOWN` bouton 4/5 selon les chemins SDL, ce qui activait les boutons sous la souris
+- correction : les handlers de menus filtrent maintenant les activations UI sur `event.button == 1`, pour ignorer la molette en contexte ingame et menu
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:50:38 +02:00`
 - piege : le hint ingame affichait encore `w/a/s/d` en dur, ce qui contredisait les keybinds configurables
 - correction : `Game.draw_ui()` construit le hint avec `binding_label()` et les keybinds normalises en memoire
 - decision : le Free Play liste les chansons, puis un menu de difficulte apparait seulement quand plusieurs variantes existent

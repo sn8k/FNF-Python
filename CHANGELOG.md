@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-12
+- correction des menus Pygame : la molette de souris ne declenche plus les boutons ni controles ingame, seuls les clics gauche sont acceptes
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:50:38 +02:00`
 - correction du hint ingame : les controles affiches utilisent maintenant les keybinds configures au lieu de `w/a/s/d` en dur
 - activation automatique de l'easter egg `AVRIL` tous les 1er avril
 - ajout d'un choix de difficulte avant lancement quand plusieurs variantes de chart existent

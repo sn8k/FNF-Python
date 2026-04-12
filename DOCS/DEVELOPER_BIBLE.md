@@ -58,6 +58,7 @@
 - `GameState.PAUSED` est un etat dedie : `update()` ne fait pas avancer le timer, ne spawne pas de notes et ne met pas a jour les sprites de gameplay
 - `ESC` depuis `GameState.PLAYING` appelle `show_pause_menu()` ; `ESC` dans `PauseMenu` appelle `resume_from_pause()`
 - `PauseMenu` vit dans `src.menu` et reutilise `Button` pour `RESUME`, `OPTIONS`, `RESTART`, `QUIT`
+- les menus ne doivent traiter `MOUSEBUTTONDOWN` comme activation UI que pour `event.button == 1`; la molette ne doit pas cliquer les boutons ingame
 - `show_pause_options()` instancie `OptionsScreen` avec `back_to_pause_menu()` pour eviter un retour parasite au menu principal
 - `restart_current_song()` s'appuie sur `current_song_key`, defini dans `play_song()`, pour relancer le chart courant sans heuristique sur le nom affiche
 - `quit_to_main_menu()` arrete l'audio, remet l'etat de partie a zero, nettoie `current_week` et `current_song_key`, puis revient a `GameState.MENU`

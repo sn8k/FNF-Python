@@ -94,6 +94,7 @@
 - `RESTART` relance le chart courant depuis zero avec un etat de gameplay propre
 - `QUIT` arrete l'audio et revient au menu principal
 - pendant la pause, le timer du chart, les notes, les animations de score et l'audio restent figes
+- la molette de souris est ignoree par les boutons des menus ingame ; seul le clic gauche active une action
 
 ## Easter egg Konami Code
 - contextes actifs : partie en cours, menu pause, options ouvertes depuis le menu pause
