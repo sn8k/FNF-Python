@@ -20,6 +20,7 @@
 - `.vscode/tasks.json` doit lancer `main.py` via le Python du `.venv` du workspace, pas via un chemin absolu specifique a une machine
 - les modules d'edition peuvent etre lances seuls ; ils configurent donc aussi les logs au bootstrap
 - `src.chart_editor`, `src.week_editor` et `src.week_manager` doivent rester lancables via `python -m ...`
+- `menu.bat` reste un wrapper Windows racine ; il doit utiliser des chemins relatifs et preferer `.venv\Scripts\python.exe` quand il existe
 - les outils d'edition ajoutent la racine du projet au `sys.path` uniquement quand ils sont executes comme fichiers directs, pour garder les imports `src.*` compatibles
 - `Game.play_song()` recharge les sprites et l'etat de notes a chaque chart pour eviter les restes d'une partie precedente
 - les temps de notes des charts sont des temps de frappe cibles ; `Note.update()` positionne la note pour arriver sur la zone de frappe a ce temps

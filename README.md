@@ -124,6 +124,8 @@ If pygame doesn't install:
 python main.py
 ```
 
+On Windows, `menu.bat` opens a launcher menu with choices for the game, the chart editor, and the latest logs.
+
 ### Main Menu
 At startup, a skippable intro screen presents a giant furry lama before the main menu appears.
 
@@ -237,6 +239,8 @@ Create custom songs using the built-in editor:
 ```bash
 python -m src.chart_editor
 ```
+
+On Windows, `menu.bat` can launch the editor from the same menu as the game.
 
 ### Editor Controls
 - **Left/Right**: Scroll the timeline
@@ -422,6 +426,7 @@ The project now uses two configurable log streams:
 - `logs/debug.log` for technical diagnostics
 
 Both streams are configured in `data/config.json`. You can enable or disable console output independently for each stream.
+On Windows, `menu.bat` can show the last lines of both active log files.
 
 ### Settings File
 

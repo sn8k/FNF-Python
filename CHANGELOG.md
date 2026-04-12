@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-12
+- ajout de `menu.bat`, un menu Windows pour lancer le jeu, ouvrir le Chart Editor ou afficher les derniers logs
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:39:20 +02:00`
 - correction du bug `player is enemy` : le personnage joueur reste a droite et les hits reussis animent maintenant `self.player`
 - ajout des champs de chart optionnels `player` et `enemy` pour choisir les dossiers de personnages depuis `assets/sprites/Characters/`
 - extension de l'editeur de charts : selection audio par `TAB`, joueur par `P`, ennemi par `O`, puis export JSON natif jouable

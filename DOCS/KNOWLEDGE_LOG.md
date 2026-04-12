@@ -1,6 +1,10 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- decision : `menu.bat` sert de lanceur Windows unique pour le jeu, `src.chart_editor` et la lecture rapide des logs actifs
+- piege : lancer un batch depuis un autre dossier change le repertoire courant et casse les chemins relatifs
+- correction : `menu.bat` commence par `cd /d "%~dp0"` et prefere `.venv\Scripts\python.exe` si disponible
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:39:20 +02:00`
 - piege : le joueur etait bien place a droite, mais les hits reussis animaient `self.opponent`, ce qui donnait l'impression que l'utilisateur jouait le personnage de gauche
 - correction : `try_hit_notes()` anime maintenant `self.player`, et les champs de chart `player`/`enemy` permettent de choisir les dossiers de personnages a charger
 - piege : l'editeur de charts devait choisir musique et versus sans casser le schema plat `name/bpm/offset/notes`

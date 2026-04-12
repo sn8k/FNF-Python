@@ -55,10 +55,12 @@
 - le changement est persistant et s'applique quand vous quittez l'ecran des options
 
 ## Lancement des outils
+- menu Windows : `menu.bat`
 - jeu principal : `python main.py`
 - editeur de charts : `python -m src.chart_editor`
 - gestionnaire de weeks et charts : `python -m src.week_manager`
 - editeur de weeks : `python -m src.week_editor`
+- `menu.bat` propose aussi une option pour lire les dernieres lignes de `logs/user.log` et `logs/debug.log`
 
 ## Builds redistribuables
 - build release : `scripts\build_release.bat -Clean`
