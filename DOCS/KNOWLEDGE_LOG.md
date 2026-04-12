@@ -1,6 +1,19 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- decision : ajout de `lane_width` dans `data/config.json` pour controler l'espacement horizontal des lanes, avec fallback a `width / lanes`
+- correction : les lanes sont maintenant centre dans la fenetre via `start_x = (width - lanes * lane_width) / 2`, puis `x = start_x + (lane + 0.5) * lane_width`
+- ajustement : `note_size` passe de 60 a 80 pour des notes plus visibles
+- piege : `src/game.py` et `src/menu.py` importaient `src.keybinds`, mais le module n'etait pas present dans le depot ; le lancement pouvait donc casser avant meme l'ouverture du jeu
+- correction : ajout de `src.keybinds` avec schema `key/scancode/display`, labels utilisateur, capture des touches, detection des doublons et matching runtime
+- piege : `OptionsScreen.save_settings()` appelait `Settings.set(..., autosave=False)` alors que `Settings.set()` ne prenait pas ce parametre ; la sauvegarde des options pouvait donc lever une exception
+- correction : `Settings.set()` accepte maintenant `autosave=False`, `Settings.load_settings()` fait une fusion recursive, ajoute `display.mode` par defaut et reserialise les anciens keybinds texte vers le schema normalise
+- piege : certains charts ou ports FNF referencent un dossier de chanson plutot qu'un fichier unique
+- correction : `Game.find_song_audio_path()` teste maintenant aussi les dossiers `Inst.*` et `Voices.*` en plus des fichiers plats dans `assets/Songs/`
+- piege : le Chart Editor savait supprimer a la souris, mais pas par clavier, et ne gardait pas de selection explicite de note
+- correction : `src.chart_editor` suit maintenant une `selected_note_index`, affiche la note selectionnee dans le panneau bas et autorise `DELETE/BACKSPACE`
+- limite verifiee : `data/settings.json` etait verrouille en ecriture dans cet environnement pendant la verification, donc la migration a ete validee dans un dossier temporaire du workspace plutot que sur le fichier utilisateur reel
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 13:55:50 +02:00`
 - piege : sous Pygame, la molette peut arriver comme un `MOUSEBUTTONDOWN` bouton 4/5 selon les chemins SDL, ce qui activait les boutons sous la souris
 - correction : les handlers de menus filtrent maintenant les activations UI sur `event.button == 1`, pour ignorer la molette en contexte ingame et menu
 - verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:50:38 +02:00`

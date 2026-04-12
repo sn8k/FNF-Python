@@ -85,6 +85,7 @@
 - le jeu cherche un fichier audio dans `assets/Songs/` avec le nom du fichier de chart ou le champ `name` du chart
 - les extensions testees sont `.mp3`, `.ogg`, puis `.wav`
 - un chart peut definir un champ optionnel `audio` avec un chemin relatif, par exemple `assets/Songs/2hot BF mix.mp3`
+- le jeu accepte aussi les dossiers de chanson type FNF, par exemple `assets/Songs/Bopeebo/Inst.ogg`
 - si l'audio est absent ou illisible, le chart reste jouable en mode muet et un avertissement est ecrit dans les logs
 
 ## Pause ingame
@@ -107,6 +108,7 @@
 
 ## Editeur de charts
 - clic gauche : ajouter une note dans la lane cliquee
+- clic gauche sur une note existante : selectionner cette note pour la supprimer plus vite
 - clic droit : supprimer une note proche
 - fleches gauche/droite : faire defiler la timeline
 - fleches haut/bas : zoomer ou dezoomer
@@ -114,6 +116,8 @@
 - `P` : choisir le prochain dossier de personnage joueur
 - `O` : choisir le prochain dossier de personnage ennemi
 - `SPACE` : lancer ou mettre en pause la preview audio
+- `DELETE` ou `BACKSPACE` : supprimer la note actuellement selectionnee
 - `CTRL+S` : sauvegarder le chart
 - la sauvegarde exporte aussi `audio`, `player` et `enemy` quand ils sont selectionnes
 - les informations de chart, preview et controles sont affichees dans le panneau bas de l'editeur
+- le panneau bas affiche aussi la note selectionnee pour aider les corrections precises

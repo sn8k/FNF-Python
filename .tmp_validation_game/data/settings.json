@@ -1,24 +1,24 @@
 {
   "keybinds": {
     "left": {
-      "key": "left",
-      "scancode": 80,
-      "display": "LEFT"
+      "key": "a",
+      "scancode": 4,
+      "display": "A"
     },
     "down": {
-      "key": "down",
-      "scancode": 81,
-      "display": "DOWN"
+      "key": "s",
+      "scancode": 22,
+      "display": "S"
     },
     "up": {
-      "key": "up",
-      "scancode": 82,
-      "display": "UP"
+      "key": "w",
+      "scancode": 26,
+      "display": "W"
     },
     "right": {
-      "key": "right",
-      "scancode": 79,
-      "display": "RIGHT"
+      "key": "d",
+      "scancode": 7,
+      "display": "D"
     }
   },
   "note_colors": {
@@ -43,7 +43,7 @@
       0
     ]
   },
-  "scroll_mode": "sidescroll",
+  "scroll_mode": "downscroll",
   "display": {
     "mode": "windowed"
   },

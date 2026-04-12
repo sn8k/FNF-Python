@@ -21,7 +21,8 @@
     "miss": 0
   },
   "lanes": 4,
-  "note_size": 60,
+  "note_size": 80,
+  "lane_width": 200,
   "menu": {
     "intro_enabled": true,
     "intro_duration_ms": 2400,

@@ -9,6 +9,13 @@ from src.resources import get_resource_path
 
 debug_logger = get_debug_logger("sprites")
 
+NOTE_ASSET_NAMES = {
+    0: "Left",
+    1: "Down",
+    2: "Up",
+    3: "Right",
+}
+
 class NoteType(Enum):
     LEFT = 0
     DOWN = 1
@@ -17,19 +24,22 @@ class NoteType(Enum):
 
 class Note(pygame.sprite.Sprite):
     """Falling note sprite"""
-    def __init__(self, x, y, note_type, spawn_time, config):
+    def __init__(self, x, y, note_type, spawn_time, config, owner="player"):
         super().__init__()
         self.note_type = note_type
         self.spawn_time = spawn_time
         self.config = config
-        
-        # Create simple colored rectangle (placeholder for sprite)
-        colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
-        color = colors[note_type.value]
-        self.image = pygame.Surface((config['note_size'], config['note_size']))
-        self.image.fill(color)
-        pygame.draw.rect(self.image, (200, 200, 200), self.image.get_rect(), 3)
-        
+        self.owner = owner
+        self.animation_triggered = False
+
+        self.image = load_note_surface(
+            note_type.value,
+            colored=(owner == "player"),
+            size=config['note_size'],
+        )
+        self.hidden = owner == "enemy"
+        if self.hidden:
+            self.image = pygame.Surface((config['note_size'], config['note_size']), pygame.SRCALPHA)
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         
@@ -51,9 +61,11 @@ class Note(pygame.sprite.Sprite):
         # Place the note above the hit zone, then land on it at the chart time.
         self.rect.centery = hit_zone_y - spawn_distance + (progress * spawn_distance)
         
-        # Mark as missed if it passed the hit zone
-        if current_time - self.spawn_time > hit_window and not self.hit:
+        # Mark as missed only for player notes so enemy notes do not count against the combo.
+        if self.owner == "player" and current_time - self.spawn_time > hit_window and not self.hit:
             self.missed = True
+        if self.hit:
+            self.kill()
     
     def get_offset(self, current_time):
         """Get how far off the player is from hitting the note (in ms)"""
@@ -61,13 +73,42 @@ class Note(pygame.sprite.Sprite):
 
 class HitZone(pygame.sprite.Sprite):
     """Visual indicator of where to hit notes"""
-    def __init__(self, x, y, size):
+    def __init__(self, x, y, size, note_type):
         super().__init__()
-        self.image = pygame.Surface((size, size))
-        self.image.set_colorkey((0, 0, 0))
-        pygame.draw.rect(self.image, (100, 100, 100), self.image.get_rect(), 2)
+        self.note_type = note_type
+        self.idle_image = load_note_surface(note_type.value, colored=False, size=size)
+        self.pressed_image = load_note_surface(note_type.value, colored=True, size=size)
+        self.image = self.idle_image
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.pressed = False
+
+    def set_pressed(self, pressed):
+        """Switch between idle and pressed lane sprites."""
+        self.pressed = bool(pressed)
+        self.image = self.pressed_image if self.pressed else self.idle_image
+        current_center = self.rect.center
+        self.rect = self.image.get_rect()
+        self.rect.center = current_center
+
+
+def load_note_surface(note_value, colored, size):
+    """Load and scale note UI/gameplay sprites with a safe fallback."""
+    note_name = NOTE_ASSET_NAMES.get(int(note_value), "Left")
+    variant = "colored" if colored else "un colored"
+    sprite_path = get_resource_path("assets", "sprites", "Notes", f"{note_name} ({variant}).png")
+
+    try:
+        image = pygame.image.load(str(sprite_path)).convert_alpha()
+        return pygame.transform.smoothscale(image, (size, size))
+    except pygame.error:
+        debug_logger.warning("Sprite de note introuvable ou invalide %s, fallback colore=%s.", sprite_path, colored)
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        colors = [(255, 0, 0), (0, 255, 0), (0, 140, 255), (255, 255, 0)]
+        color = colors[int(note_value) % len(colors)] if colored else (120, 120, 120)
+        pygame.draw.rect(surface, color, surface.get_rect(), border_radius=max(6, size // 5))
+        pygame.draw.rect(surface, (220, 220, 220), surface.get_rect(), 3, border_radius=max(6, size // 5))
+        return surface
 
 class Character(pygame.sprite.Sprite):
     """Player or opponent character"""

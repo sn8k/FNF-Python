@@ -62,6 +62,7 @@ class ChartEditor:
         self.preview_mode = "upscroll"
         self.playback_speed = 0.25
         self.running = True
+        self.selected_note_index = None
 
         # UI layout
         self.timeline_height = 60
@@ -110,6 +111,52 @@ class ChartEditor:
         with open(self.export_chart_file, 'w', encoding="utf-8") as f:
             json.dump(serialize_chart(self.chart), f, indent=2)
         user_logger.info("Chart sauvegarde: %s", self.export_chart_file)
+
+    def sort_notes(self):
+        """Keep notes ordered and preserve the selected note when possible."""
+        selected_note = None
+        if self.selected_note_index is not None and 0 <= self.selected_note_index < len(self.chart["notes"]):
+            selected_note = self.chart["notes"][self.selected_note_index]
+
+        self.chart["notes"].sort(key=lambda note: (int(note["time"]), int(note["lane"])))
+
+        if selected_note in self.chart["notes"]:
+            self.selected_note_index = self.chart["notes"].index(selected_note)
+        elif self.chart["notes"]:
+            self.selected_note_index = min(self.selected_note_index or 0, len(self.chart["notes"]) - 1)
+        else:
+            self.selected_note_index = None
+
+    def set_selected_note_from_hit(self, mouse_x, lane):
+        """Select the nearest visible note in the clicked lane."""
+        best_index = None
+        best_distance = None
+        for index, note in enumerate(self.chart["notes"]):
+            if int(note["lane"]) != lane:
+                continue
+            distance = abs(self.time_to_x(int(note["time"])) - mouse_x)
+            if distance > 25:
+                continue
+            if best_distance is None or distance < best_distance:
+                best_distance = distance
+                best_index = index
+        self.selected_note_index = best_index
+        return best_index
+
+    def delete_selected_note(self):
+        """Delete the currently selected note."""
+        if self.selected_note_index is None:
+            return False
+        if not (0 <= self.selected_note_index < len(self.chart["notes"])):
+            self.selected_note_index = None
+            return False
+
+        self.chart["notes"].pop(self.selected_note_index)
+        if self.chart["notes"]:
+            self.selected_note_index = min(self.selected_note_index, len(self.chart["notes"]) - 1)
+        else:
+            self.selected_note_index = None
+        return True
 
     def find_song_files(self):
         """Find songs in assets/Songs"""
@@ -293,8 +340,9 @@ class ChartEditor:
                 elif event.key == pygame.K_c:
                     if pygame.key.get_mods() & pygame.KMOD_SHIFT:
                         self.chart['notes'] = []
+                        self.selected_note_index = None
                 elif event.key == pygame.K_DELETE or event.key == pygame.K_BACKSPACE:
-                    pass
+                    self.delete_selected_note()
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click - add note
@@ -310,21 +358,18 @@ class ChartEditor:
                             )
                             if not note_exists:
                                 self.chart['notes'].append({
-                                    "time": time_ms,
+                                    "time": int(time_ms),
                                     "lane": lane
                                 })
-                                self.chart['notes'].sort(key=lambda x: x['time'])
+                                self.sort_notes()
+                                self.set_selected_note_from_hit(mouse_x, lane)
 
                 elif event.button == 3:  # Right click - delete note
                     mouse_x, mouse_y = pygame.mouse.get_pos()
                     if self.timeline_height < mouse_y < self.content_bottom:
                         lane = int(mouse_x / self.lane_width)
-                        time_ms = self.x_to_time(mouse_x)
-                        for i, note in enumerate(self.chart['notes']):
-                            note_x = self.time_to_x(note['time'])
-                            if (note['lane'] == lane and abs(note_x - mouse_x) < 25):
-                                self.chart['notes'].pop(i)
-                                break
+                        self.set_selected_note_from_hit(mouse_x, lane)
+                        self.delete_selected_note()
 
             elif event.type == pygame.MOUSEWHEEL:
                 self.scroll_offset = max(0, self.scroll_offset - event.y * 300)
@@ -351,14 +396,15 @@ class ChartEditor:
             f"Scroll: {self.scroll_offset:.0f}ms | Zoom: {self.pixels_per_ms:.2f}px/ms | BPM: {self.bpm}",
             f"Notes: {len(self.chart['notes'])} | Song: {self.chart.get('name', 'New Song')}",
             f"Versus: {self.chart.get('player', 'Player')} vs {self.chart.get('enemy', 'EnemyTest')}",
+            f"Selected note: {self.describe_selected_note()}",
             f"Save: CTRL+S -> {self.export_chart_file.name}",
         ]
         right_texts = [
             "PREVIEW",
             song_text,
             f"Status: {status_text} | Mode: {self.preview_mode} | Audio: {song_selection}",
-            "Left/Right: scroll | Up/Down: zoom | Click: add | Right Click: delete",
-            "TAB: audio | ENTER: load | P: player | O: enemy | SPACE: play/pause",
+            "Left/Right: scroll | Up/Down: zoom | Click: add/select | Right Click: delete",
+            "TAB: audio | ENTER: load | P: player | O: enemy | DEL: delete | SPACE: play/pause",
         ]
 
         self.draw_panel_column(left_texts, 10, panel_top + 10, title_font, font)
@@ -449,7 +495,7 @@ class ChartEditor:
         note_height = self.lane_height * 0.15
         note_width = self.lane_width * 0.8
 
-        for note in self.chart['notes']:
+        for index, note in enumerate(self.chart['notes']):
             x = self.time_to_x(note['time'])
             lane = note['lane']
             if -note_width < x < self.config['width'] + note_width:
@@ -462,7 +508,20 @@ class ChartEditor:
                     note_height
                 )
                 pygame.draw.rect(self.screen, color, rect)
-                pygame.draw.rect(self.screen, (255, 255, 255), rect, 2)
+                border_color = (255, 255, 255)
+                border_width = 4 if index == self.selected_note_index else 2
+                pygame.draw.rect(self.screen, border_color, rect, border_width)
+
+    def describe_selected_note(self):
+        """Describe the selected note for the status panel."""
+        if self.selected_note_index is None:
+            return "none"
+        if not (0 <= self.selected_note_index < len(self.chart["notes"])):
+            self.selected_note_index = None
+            return "none"
+
+        note = self.chart["notes"][self.selected_note_index]
+        return f"lane {int(note['lane'])} @ {int(note['time'])}ms"
 
     def draw_ui(self):
         """Legacy hook kept for draw order compatibility."""

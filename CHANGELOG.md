@@ -1,6 +1,13 @@
 # Changelog
 
 ## 2026-04-12
+- ajustement visuel des notes : augmentation de `note_size` a 80 pour des notes plus grandes, ajout de `lane_width` configurable a 200 pour rapprocher les lanes, et centrage automatique des lanes dans la fenetre
+- correction critique : ajout du module manquant `src/keybinds.py`, necessaire au lancement du jeu et des options
+- correction de la persistence : `Settings.set()` accepte maintenant `autosave=False`, `display.mode` revient dans les defaults, et les anciens keybinds texte sont reserialises en `key/scancode/display`
+- correction audio : le runtime accepte maintenant aussi les dossiers de chanson FNF avec `Inst.*` et `Voices.*` dans `assets/Songs/`
+- correction du Chart Editor : ajout d'une vraie note selectionnee, suppression via `DELETE/BACKSPACE`, et panneau bas aligne avec cet etat
+- trace projet : remplissage des fiches `BUGS/traceback.md`, `BUGS/inst+voices.md`, `TODOs/chart editor note placing and deleting.md` et `TODOs/Quality of life changes.md`
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `13:55:50 +02:00`
 - correction des menus Pygame : la molette de souris ne declenche plus les boutons ni controles ingame, seuls les clics gauche sont acceptes
 - note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:50:38 +02:00`
 - correction du hint ingame : les controles affiches utilisent maintenant les keybinds configures au lieu de `w/a/s/d` en dur

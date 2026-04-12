@@ -3,6 +3,7 @@ Settings management for FNF - handles saving/loading game settings
 """
 from copy import deepcopy
 import json
+from src.keybinds import normalize_keybinds
 from src.logging_utils import get_debug_logger, get_user_logger
 from src.resources import get_resource_path
 
@@ -15,10 +16,10 @@ class Settings:
     
     DEFAULT_SETTINGS = {
         "keybinds": {
-            "left": "a",
-            "down": "s",
-            "up": "w",
-            "right": "d",
+            "left": {"key": "a", "scancode": 4, "display": "A"},
+            "down": {"key": "s", "scancode": 22, "display": "S"},
+            "up": {"key": "w", "scancode": 26, "display": "W"},
+            "right": {"key": "d", "scancode": 7, "display": "D"},
         },
         "note_colors": {
             "left": [255, 0, 0],      # Red
@@ -27,6 +28,9 @@ class Settings:
             "right": [255, 255, 0],   # Yellow
         },
         "scroll_mode": "downscroll",  # downscroll, upscroll, sidescroll
+        "display": {
+            "mode": "windowed",
+        },
         "volume": {
             "master": 70,
             "music": 70,
@@ -41,18 +45,27 @@ class Settings:
         
     def load_settings(self):
         """Load settings from file"""
+        should_reserialize = False
         if self.settings_path.exists():
             try:
                 with open(self.settings_path, 'r', encoding="utf-8") as f:
                     saved = json.load(f)
-                    # Merge with defaults to ensure all keys exist
-                    self.settings = {**deepcopy(self.DEFAULT_SETTINGS), **saved}
+                    self.settings = self._deep_merge(deepcopy(self.DEFAULT_SETTINGS), saved)
+                    normalized_keybinds = normalize_keybinds(self.settings.get("keybinds", {}))
+                    if self.settings.get("keybinds") != normalized_keybinds:
+                        self.settings["keybinds"] = normalized_keybinds
+                        should_reserialize = True
+                    should_reserialize = should_reserialize or self.settings != saved
             except (json.JSONDecodeError, IOError):
                 user_logger.warning("Parametres invalides, chargement des valeurs par defaut.")
                 debug_logger.exception(
                     "Echec du chargement des parametres depuis %s", self.settings_path
                 )
+                should_reserialize = True
         else:
+            should_reserialize = True
+
+        if should_reserialize:
             self.save_settings()
     
     def save_settings(self):
@@ -73,7 +86,7 @@ class Settings:
                 return default
         return value if value is not None else default
     
-    def set(self, key, value):
+    def set(self, key, value, autosave=True):
         """Set a setting value"""
         keys = key.split('.')
         var = self.settings
@@ -82,9 +95,23 @@ class Settings:
                 var[k] = {}
             var = var[k]
         var[keys[-1]] = value
-        self.save_settings()
+        if autosave:
+            self.save_settings()
     
     def reset_to_defaults(self):
         """Reset all settings to defaults"""
         self.settings = deepcopy(self.DEFAULT_SETTINGS)
         self.save_settings()
+
+    def _deep_merge(self, base, override):
+        """Merge nested settings while preserving new defaults."""
+        if not isinstance(base, dict) or not isinstance(override, dict):
+            return deepcopy(override)
+
+        merged = deepcopy(base)
+        for key, value in override.items():
+            if isinstance(merged.get(key), dict) and isinstance(value, dict):
+                merged[key] = self._deep_merge(merged[key], value)
+            else:
+                merged[key] = deepcopy(value)
+        return merged

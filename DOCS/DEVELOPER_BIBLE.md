@@ -23,9 +23,11 @@
 - `menu.bat` reste un wrapper Windows racine ; il doit utiliser des chemins relatifs et preferer `.venv\Scripts\python.exe` quand il existe
 - les outils d'edition ajoutent la racine du projet au `sys.path` uniquement quand ils sont executes comme fichiers directs, pour garder les imports `src.*` compatibles
 - le Chart Editor reserve `bottom_panel_height` pour les informations et controles ; aucune autre couche ne doit redessiner du texte dans ce panneau
+- le Chart Editor maintient `selected_note_index` pour les suppressions clavier et doit garder cette selection coherente apres tri ou effacement
 - `Game.play_song()` recharge les sprites et l'etat de notes a chaque chart pour eviter les restes d'une partie precedente
 - les temps de notes des charts sont des temps de frappe cibles ; `Note.update()` positionne la note pour arriver sur la zone de frappe a ce temps
 - le champ optionnel `audio` d'un chart doit rester relatif a la racine du projet ; les chemins absolus sont ignores et journalises
+- la resolution audio runtime doit tester les fichiers plats et les dossiers FNF de type `Inst.*` et `Voices.*` sans exiger de chemin absolu
 - les champs optionnels `player` et `enemy` d'un chart pointent vers des dossiers de `assets/sprites/Characters/`
 - le joueur est le personnage de droite ; les frappes reussies doivent animer `self.player`, pas `self.opponent`
 - si aucun audio n'est trouve dans `assets/Songs/`, le gameplay doit continuer en mode muet avec un avertissement utilisateur et un detail debug
@@ -44,6 +46,7 @@
 - `data/settings.json` contient `display.mode` avec `windowed` ou `fullscreen`
 - `Settings.load_settings()` utilise maintenant une fusion recursive pour ne pas perdre les nouveaux sous-blocs quand un ancien fichier de settings est recharge
 - `Settings.load_settings()` reserialise aussi les settings pour recreer `data/settings.json`, injecter les cles manquantes et migrer les anciens keybinds texte
+- `Settings.set(..., autosave=False)` est la voie normale pour accumuler plusieurs changements UI avant un `save_settings()` unique
 - `Game.apply_runtime_settings()` centralise l'application immediate des keybinds et du mode d'affichage
 - `Game.apply_display_mode()` garde une resolution logique 1280x720 et bascule seulement les flags SDL/Pygame
 - `GameState.INTRO` heberge l'ecran d'intro ; `IntroScreen` vit dans `src.menu` et renvoie ensuite vers `GameState.MENU`

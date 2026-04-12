@@ -224,6 +224,7 @@ All settings are automatically saved when you return to the main menu.
 
 When you start a game:
 1. The game loads the chart JSON and tries to load matching audio from `assets/Songs/`
+   It also accepts FNF-style song folders such as `assets/Songs/My Song/Inst.ogg`
 2. Colored notes fall down the screen
 3. Hit each note when it reaches the hit zone (green border)
 4. Timing accuracy affects scoring:
@@ -251,6 +252,7 @@ On Windows, `menu.bat` can launch the editor from the same menu as the game.
 - **Left/Right**: Scroll the timeline
 - **Up/Down**: Zoom the timeline
 - **Left Click**: Add a note in the clicked lane and snapped time
+- **Left Click on an existing note**: Select the nearest note in that lane
 - **Right Click**: Delete a nearby note in the clicked lane
 - **Mouse Wheel**: Scroll the timeline
 - **TAB / SHIFT+TAB**: Select next or previous audio file
@@ -258,6 +260,7 @@ On Windows, `menu.bat` can launch the editor from the same menu as the game.
 - **P**: Select the next player character folder
 - **O**: Select the next enemy character folder
 - **SPACE**: Play/pause audio preview when audio is available
+- **DELETE / BACKSPACE**: Delete the selected note
 - **SHIFT+C**: Clear all notes
 - **CTRL+S**: Save chart
 - **ESC**: Exit editor
@@ -321,7 +324,7 @@ Weeks are saved as JSON files in `data/weeks/`
 
 - **time**: Target hit time in milliseconds
 - **lane**: Lane number (0-3 for Left, Down, Up, Right)
-- **audio**: Optional relative path or filename for the song audio. If omitted, the game tries `assets/Songs/<chart file name>` and `assets/Songs/<chart name>` with `.mp3`, `.ogg`, then `.wav`.
+- **audio**: Optional relative path or filename for the song audio. If omitted, the game tries `assets/Songs/<chart file name>` and `assets/Songs/<chart name>` with `.mp3`, `.ogg`, then `.wav`, and also checks FNF-style folders such as `assets/Songs/<chart>/Inst.ogg`.
 - **player**: Optional folder name from `assets/sprites/Characters/` for the right-side playable character.
 - **enemy**: Optional folder name from `assets/sprites/Characters/` for the left-side opponent.
 

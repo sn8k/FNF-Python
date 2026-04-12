@@ -182,13 +182,19 @@ def _normalize_native_chart(chart: dict[str, Any], source_path: Path | None) -> 
 def _normalize_sectioned_chart(song_data: dict[str, Any], source_path: Path | None) -> dict[str, Any]:
     chart_name = _infer_chart_name(song_data.get("song"), source_path)
     normalized_notes: list[dict[str, Any]] = []
-    ignored_opponent_notes = 0
+    normalized_sections: list[dict[str, Any]] = []
+    opponent_note_count = 0
+    normalized_bpm = _coerce_number(song_data.get("bpm"), 120)
+    beat_duration_ms = 60000.0 / normalized_bpm if normalized_bpm else 500.0
 
     for section in song_data.get("notes", []):
         if not isinstance(section, dict):
             continue
 
         must_hit_section = bool(section.get("mustHitSection", False))
+        section_start: int | None = None
+        section_beats = _coerce_int(section.get("sectionBeats"), 0)
+
         for raw_note in section.get("sectionNotes", []):
             if not isinstance(raw_note, (list, tuple)) or len(raw_note) < 2:
                 continue
@@ -198,34 +204,53 @@ def _normalize_sectioned_chart(song_data: dict[str, Any], source_path: Path | No
             except (TypeError, ValueError):
                 continue
 
+            note_time = _coerce_int(raw_note[0], 0)
+            if section_start is None or note_time < section_start:
+                section_start = note_time
+
             is_player_note = must_hit_section
             if raw_lane >= 4:
                 is_player_note = not is_player_note
 
-            if not is_player_note:
-                ignored_opponent_notes += 1
-                continue
-
             note: dict[str, Any] = {
-                "time": _coerce_int(raw_note[0], 0),
+                "time": note_time,
                 "lane": raw_lane % 4,
+                "owner": "player" if is_player_note else "enemy",
             }
             if len(raw_note) >= 3:
                 hold_length = _coerce_int(raw_note[2], 0)
                 if hold_length > 0:
                     note["hold"] = hold_length
+
+            if not is_player_note:
+                opponent_note_count += 1
             normalized_notes.append(note)
 
-    normalized_notes.sort(key=lambda note: (note["time"], note["lane"]))
+        if section_start is not None:
+            section_duration = int(round(section_beats * beat_duration_ms)) if section_beats > 0 else 0
+            normalized_sections.append(
+                {
+                    "mustHitSection": must_hit_section,
+                    "sectionBeats": section_beats,
+                    "start_time": section_start,
+                    "end_time": section_start + section_duration if section_duration > 0 else float("inf"),
+                }
+            )
+
+    normalized_notes.sort(key=lambda note: (note["time"], note["lane"], note["owner"]))
+    normalized_sections.sort(key=lambda section: section["start_time"])
+    for index in range(len(normalized_sections) - 1):
+        normalized_sections[index]["end_time"] = normalized_sections[index + 1]["start_time"]
 
     normalized: dict[str, Any] = {
         "name": chart_name,
         "bpm": _coerce_number(song_data.get("bpm"), 120),
-        "offset": 0,
+        "offset": _coerce_int(song_data.get("offset"), 0),
         "notes": normalized_notes,
+        "sections": normalized_sections,
         "audio": _normalize_relative_path(song_data.get("audio")) or _infer_chart_audio(source_path),
         "_source_format": "fnf_sectioned",
-        "_ignored_opponent_notes": ignored_opponent_notes,
+        "_opponent_notes": opponent_note_count,
         "_difficulty": _detect_difficulty(source_path),
     }
 
