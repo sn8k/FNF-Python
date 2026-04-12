@@ -71,9 +71,10 @@ class HitZone(pygame.sprite.Sprite):
 
 class Character(pygame.sprite.Sprite):
     """Player or opponent character"""
-    def __init__(self, x, y, character_type="player", size=350):
+    def __init__(self, x, y, character_type="player", size=350, character_name=None):
         super().__init__()
         self.character_type = character_type  # "player" or "enemy"
+        self.character_name = character_name
         self.target_height = size  # Target height in pixels, maintains aspect ratio
         self.animation_frame = 0
         self.animation_speed = 0.1
@@ -110,10 +111,15 @@ class Character(pygame.sprite.Sprite):
         """Load all sprite images for this character"""
         base_path = get_resource_path("assets", "sprites", "Characters")
         
-        if self.character_type == "player":
-            char_path = base_path / "Player"
-        else:  # enemy
-            char_path = base_path / "EnemyTest"
+        default_folder = "Player" if self.character_type == "player" else "EnemyTest"
+        char_path = base_path / (self.character_name or default_folder)
+        if not char_path.is_dir():
+            debug_logger.warning(
+                "Dossier de personnage introuvable %s, fallback vers %s.",
+                char_path,
+                default_folder,
+            )
+            char_path = base_path / default_folder
         
         # Load all animation sprites
         animations = ["Idle", "Up", "Down", "Left", "Right"]

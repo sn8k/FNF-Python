@@ -5,6 +5,8 @@
 - utiliser `get_user_logger(...)` pour les messages orientes utilisateur
 - utiliser `get_debug_logger(...)` pour les details techniques, exceptions et diagnostics
 - eviter les `print()` directs dans le code applicatif ; si un cas exceptionnel reste necessaire, il doit etre justifie
+- `configure_logging()` archive les fichiers de logs existants avant d'ouvrir les nouveaux handlers
+- la rotation conserve 3 copies maximum avec le format `<logname>.0.log`, `<logname>.1.log`, `<logname>.2.log`
 
 ## Convention d'usage
 - un message court et comprehensible pour l'utilisateur dans le logger `user`
@@ -14,18 +16,36 @@
 ## Points de vigilance connus
 - `main.py` configure les logs avant l'initialisation principale
 - `Game` recharge la configuration via `load_project_config()` pour garantir la presence du bloc `logging`
+- les handlers `fnf.user` et `fnf.debug` doivent etre fermes avant rotation pour eviter les fichiers verrouilles sous Windows
+- `.vscode/tasks.json` doit lancer `main.py` via le Python du `.venv` du workspace, pas via un chemin absolu specifique a une machine
 - les modules d'edition peuvent etre lances seuls ; ils configurent donc aussi les logs au bootstrap
 - `src.chart_editor`, `src.week_editor` et `src.week_manager` doivent rester lancables via `python -m ...`
 - les outils d'edition ajoutent la racine du projet au `sys.path` uniquement quand ils sont executes comme fichiers directs, pour garder les imports `src.*` compatibles
 - `Game.play_song()` recharge les sprites et l'etat de notes a chaque chart pour eviter les restes d'une partie precedente
 - les temps de notes des charts sont des temps de frappe cibles ; `Note.update()` positionne la note pour arriver sur la zone de frappe a ce temps
 - le champ optionnel `audio` d'un chart doit rester relatif a la racine du projet ; les chemins absolus sont ignores et journalises
+- les champs optionnels `player` et `enemy` d'un chart pointent vers des dossiers de `assets/sprites/Characters/`
+- le joueur est le personnage de droite ; les frappes reussies doivent animer `self.player`, pas `self.opponent`
 - si aucun audio n'est trouve dans `assets/Songs/`, le gameplay doit continuer en mode muet avec un avertissement utilisateur et un detail debug
 
 ## Configuration gameplay
 - `gameplay.spawn_distance` : distance visuelle entre le point d'apparition et la zone de frappe
 - `gameplay.note_approach_time_ms` : duree du trajet de la note vers la zone de frappe
 - `note_size` reste au niveau racine de `data/config.json` ; le spawn de notes construit une configuration combinee pour `Note`
+
+## Configuration menu et affichage
+- `data/config.json` contient `menu.intro_enabled`, `menu.intro_duration_ms` et les parametres d'animation du titre ; `load_project_config()` fournit les valeurs par defaut via fusion profonde puis reecrit le JSON s'il manque, est invalide ou incomplet
+- `data/config.json` contient aussi les parametres `menu.exit_evasion_radius_px`, `menu.exit_evasion_max_speed_px` et `menu.exit_evasion_smoothness` pour l'easter egg `AVRIL`
+- `data/settings.json` contient `display.mode` avec `windowed` ou `fullscreen`
+- `Settings.load_settings()` utilise maintenant une fusion recursive pour ne pas perdre les nouveaux sous-blocs quand un ancien fichier de settings est recharge
+- `Settings.load_settings()` reserialise aussi les settings pour recreer `data/settings.json`, injecter les cles manquantes et migrer les anciens keybinds texte
+- `Game.apply_runtime_settings()` centralise l'application immediate des keybinds et du mode d'affichage
+- `Game.apply_display_mode()` garde une resolution logique 1280x720 et bascule seulement les flags SDL/Pygame
+- `GameState.INTRO` heberge l'ecran d'intro ; `IntroScreen` vit dans `src.menu` et renvoie ensuite vers `GameState.MENU`
+- `MenuScreen` anime le logo a partir de `pygame.time.get_ticks()` avec une oscillation faible configuree par `data/config.json`
+- `MenuScreen` observe la sequence clavier `AVRIL` seulement sur le menu principal, puis deplace le bouton `QUIT` via une interpolation basee sur la vitesse de la souris en le clampant dans la fenetre
+- `src.keybinds` centralise le schema `key/scancode/display`, la migration legacy et le matching runtime ; le gameplay doit matcher les `scancode` quand SDL/Pygame les fournit, avec fallback sur `key` seulement en absence de scancode
+- `OptionsScreen.resolve_duplicate_keybinds()` echange les binds dupliques pour garder une lane unique par touche physique
 
 ## Pause ingame
 - `GameState.PAUSED` est un etat dedie : `update()` ne fait pas avancer le timer, ne spawne pas de notes et ne met pas a jour les sprites de gameplay
@@ -40,10 +60,10 @@
 ## Easter egg Konami Code
 - la detection est centralisee dans `Game.handle_events()` via `observe_konami_key()` et ne consomme pas les evenements, pour laisser les ecrans existants traiter les controles normaux
 - `is_ingame_context()` limite le scope a `PLAYING`, `PAUSED` et `OPTIONS` seulement quand `options_opened_from_pause` est vrai
-- le buffer est remis a zero sur mauvaise touche, retour menu principal, ouverture des options principales ou `QUIT`
+- le buffer est remis a zero sur mauvaise touche, changement d'etat, perte de focus, retour menu principal, ouverture des options principales ou `QUIT`
 - `activate_konami_easter_egg()` applique `KONAMI_COOLDOWN_MS` pour eviter plusieurs ouvertures rapides
 - l'ouverture externe utilise `webbrowser.open(..., new=2, autoraise=True)` dans un thread daemon ; toute exception ou retour `False` est journalise
-- `draw_konami_message()` affiche le message temporaire au-dessus du gameplay, de la pause ou des options ingame, sans creer de sprite persistant
+- `draw_konami_message()` affiche le message temporaire seulement en contexte ingame, au-dessus du gameplay, de la pause ou des options ingame, sans creer de sprite persistant
 - l'URL contient `autoplay=1`, mais le navigateur garde la decision finale sur l'autoplay audible
 
 ## Packaging PyInstaller

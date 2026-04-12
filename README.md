@@ -8,15 +8,17 @@ A lightweight Python Pygame implementation of Friday Night Funkin' with basic ga
 - **Scoring System**: Perfect, Great, Good, Bad, and Miss ratings
 - **Combo Counter**: Track consecutive hit streaks
 - **Accuracy Tracking**: Real-time accuracy percentage
-- **Opponent Animations**: Opponent character responds to player hits
+- **Player Animations**: Right-side player character responds to successful hits
 - **Chart System**: Custom song charts with JSON support
 - **Chart Editor**: Simple built-in GUI editor for creating custom charts
 - **Main Menu System**: Navigate between Play, Options, and Quit
+- **Animated Frontpage Title**: Main menu logo gently moves to draw the eye
+- **Intro Screen**: A skippable furry lama intro plays before the main menu
 - **Play Menu**: Choose between Free Play or Story Mode
 - **Free Play**: Select and play any song individually
 - **Story Mode**: Play through organized level packs (weeks)
 - **Week Editor**: Create and manage custom level packs/weeks
-- **Options Menu**: Customize keybinds, scroll mode, and volume levels
+- **Options Menu**: Customize keybinds, scroll mode, display mode, and volume levels
 - **Settings Management**: All preferences saved and automatically restored
 - **Modular Design**: Separate sprite files ready for custom graphics
 - **Drako Background**: Dynamic menu background for play selection
@@ -42,7 +44,7 @@ fnf python/
 │   └── week_editor.py     # Week editor tool
 ├── data/
 │   ├── config.json        # Game configuration
-│   ├── settings.json      # User settings (created on first run)
+│   ├── settings.json      # User settings (created or repaired on launch)
 │   ├── charts/            # Song charts (JSON format)
 │   │   └── test_song.json # Example chart
 │   └── weeks/             # Level packs/weeks
@@ -123,10 +125,15 @@ python main.py
 ```
 
 ### Main Menu
+At startup, a skippable intro screen presents a giant furry lama before the main menu appears.
+
 When you launch the game, you'll see the main menu with three options:
 - **PLAY** - Access play modes (Free Play or Story Mode)
 - **OPTIONS** - Open the settings menu
 - **QUIT** - Exit the game
+
+The title on the frontpage has a light idle animation so the menu feels less static.
+Type `AVRIL` on the main menu to enable the April easter egg: the **QUIT** button flees from the mouse, stays inside the window, and moves faster when the mouse moves faster.
 
 ### Play Menu
 After selecting PLAY, choose your mode:
@@ -147,7 +154,8 @@ After selecting PLAY, choose your mode:
 - Press ESC to return to play menu
 
 ### Controls During Gameplay
-- **W/A/S/D**: Hit notes in lanes (Up/Left/Down/Right)
+- **A/S/W/D**: Default physical lane keys on QWERTY
+- **Q/S/Z/D**: Same default physical lane keys on AZERTY
 - **SPACE**: Start/pause the chart and loaded song audio
 - **ESC**: Open the pause menu
 
@@ -165,6 +173,7 @@ UP, UP, DOWN, DOWN, LEFT, RIGHT, LEFT, RIGHT, B, A
 ```
 
 The game opens `https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1` in the default browser and shows `You've been so fuckin rick Rolled dude ! Ahah bad chance`. Browser autoplay can still be blocked by the browser's local policy.
+The sequence resets if you leave ingame contexts or if the game window loses focus.
 
 ### Options Menu
 
@@ -181,6 +190,8 @@ Customize your control scheme by clicking on each key binding:
 - **Left, Down, Up, Right**: Click to rebind, then press any key
 - The selector will light up while listening for input
 - Press ESC or click another binding to cancel
+- Gameplay binds follow the physical key position first, so the default layout stays playable on both QWERTY and AZERTY
+- If you reuse an existing gameplay bind, the options screen swaps the duplicate so each lane keeps a unique key
 
 #### Scroll Mode
 Choose how notes fall on screen:
@@ -189,6 +200,12 @@ Choose how notes fall on screen:
 - **[SIDESCROLL]** - Notes move from side to side
 
 Click any mode to select it.
+
+#### Display Mode
+- **[WINDOWED]** - Run the game in a standard 1280x720 window
+- **[FULLSCREEN]** - Run the game in fullscreen using the same base resolution
+
+The selected display mode is saved in `data/settings.json` and applied when you leave the options menu or restart the game.
 
 #### Settings Management
 - **BACK Button**: Save your settings and return to main menu
@@ -229,12 +246,14 @@ python -m src.chart_editor
 - **Mouse Wheel**: Scroll the timeline
 - **TAB / SHIFT+TAB**: Select next or previous audio file
 - **ENTER**: Reload selected audio file
+- **P**: Select the next player character folder
+- **O**: Select the next enemy character folder
 - **SPACE**: Play/pause audio preview when audio is available
 - **SHIFT+C**: Clear all notes
 - **CTRL+S**: Save chart
 - **ESC**: Exit editor
 
-Charts are saved as JSON files in `data/charts/`
+Charts are saved as JSON files in `data/charts/`. The editor saves selected audio in the chart `audio` field, and selected versus characters in `player` and `enemy`.
 
 ## Week Manager
 
@@ -278,6 +297,8 @@ Weeks are saved as JSON files in `data/weeks/`
 {
   "name": "My Song",
   "audio": "assets/Songs/My Song.mp3",
+  "player": "Player",
+  "enemy": "EnemyTest",
   "bpm": 120,
   "offset": 0,
   "notes": [
@@ -292,6 +313,8 @@ Weeks are saved as JSON files in `data/weeks/`
 - **time**: Target hit time in milliseconds
 - **lane**: Lane number (0-3 for Left, Down, Up, Right)
 - **audio**: Optional relative path or filename for the song audio. If omitted, the game tries `assets/Songs/<chart file name>` and `assets/Songs/<chart name>` with `.mp3`, `.ogg`, then `.wav`.
+- **player**: Optional folder name from `assets/sprites/Characters/` for the right-side playable character.
+- **enemy**: Optional folder name from `assets/sprites/Characters/` for the left-side opponent.
 
 ## Customization
 
@@ -303,7 +326,7 @@ The easiest way to customize everything is through the Options menu:
 4. Select your preferred scroll mode (downscroll, upscroll, or sidescroll)
 5. Click **BACK** to save your settings
 
-Your settings are automatically saved to `data/settings.json` and restored when you launch the game again.
+Your settings are automatically saved to `data/settings.json`, normalized to the latest schema, and restored when you launch the game again.
 
 ### Adding Custom Character Sprites
 Character sprites are loaded from `assets/sprites/Characters/`:
@@ -349,6 +372,17 @@ Edit `data/config.json` for advanced settings:
   },
   "lanes": 4,
   "note_size": 60,
+  "menu": {
+    "intro_enabled": true,
+    "intro_duration_ms": 2400,
+    "title_animation_amplitude_px": 10,
+    "title_animation_speed": 0.003,
+    "title_rotation_degrees": 2.0,
+    "title_scale_amplitude": 0.025,
+    "exit_evasion_radius_px": 170,
+    "exit_evasion_max_speed_px": 520,
+    "exit_evasion_smoothness": 0.18
+  },
   "logging": {
     "directory": "logs",
     "user": {
@@ -367,11 +401,16 @@ Edit `data/config.json` for advanced settings:
 }
 ```
 
+If `data/config.json` is missing, invalid, or incomplete, the launcher recreates it from the built-in defaults and writes the merged result back to disk.
+
 - **spawn_distance**: How far above the hit zone notes appear
 - **hit_window**: Total milliseconds for valid hits
 - **note_approach_time_ms**: Time notes spend travelling toward the hit zone
 - **Hit ranges**: Timing windows for each accuracy level
 - **scoring**: Points awarded for each accuracy
+- **menu.exit_evasion_radius_px**: Mouse distance that starts the `AVRIL` quit-button evasion
+- **menu.exit_evasion_max_speed_px**: Maximum evasion speed contribution
+- **menu.exit_evasion_smoothness**: Smooth interpolation factor for the evasive button movement
 - **logging.directory**: Folder where log files are written
 - **logging.user**: Player-facing logs for important messages
 - **logging.debug**: Technical diagnostics for troubleshooting
@@ -391,10 +430,29 @@ Manual settings are stored in `data/settings.json`:
 ```json
 {
   "keybinds": {
-    "left": "a",
-    "down": "s",
-    "up": "w",
-    "right": "d"
+    "left": {
+      "key": "a",
+      "scancode": 4,
+      "display": "A / Q"
+    },
+    "down": {
+      "key": "s",
+      "scancode": 22,
+      "display": "S"
+    },
+    "up": {
+      "key": "w",
+      "scancode": 26,
+      "display": "W / Z"
+    },
+    "right": {
+      "key": "d",
+      "scancode": 7,
+      "display": "D"
+    }
+  },
+  "display": {
+    "mode": "windowed"
   },
   "scroll_mode": "downscroll",
   "volume": {
@@ -405,7 +463,7 @@ Manual settings are stored in `data/settings.json`:
 }
 ```
 
-You can edit this directly, or use the Options menu (recommended).
+Existing string-only keybinds are migrated automatically on launch. You can edit this file directly, or use the Options menu (recommended).
 
 ## Redistributable Builds
 

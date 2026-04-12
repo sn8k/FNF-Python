@@ -1,12 +1,16 @@
 """
 Menu UI components and menu screens for FNF
 """
+import math
 import pygame
+from src.keybinds import binding_label, bindings_conflict, build_keybind_from_event, clone_keybind, default_keybind, normalize_keybind
 from src.logging_utils import get_debug_logger
 from src.resources import get_resource_path
 
 
 debug_logger = get_debug_logger("menu")
+
+AVRIL_SEQUENCE = "AVRIL"
 
 class Button:
     """UI Button for menus"""
@@ -123,9 +127,12 @@ class KeybindSelector:
     def __init__(self, x, y, action_name):
         self.rect = pygame.Rect(x, y, 150, 40)
         self.action_name = action_name
-        self.key = None
+        self.binding = None
         self.listening = False
         self.font = pygame.font.Font(None, 28)
+
+    def set_binding(self, binding):
+        self.binding = clone_keybind(binding)
         
     def draw(self, surface):
         """Draw the keybind selector"""
@@ -133,7 +140,7 @@ class KeybindSelector:
         pygame.draw.rect(surface, color, self.rect)
         pygame.draw.rect(surface, (200, 200, 200), self.rect, 2)
         
-        key_text = pygame.key.name(self.key) if self.key else "..."
+        key_text = binding_label(self.binding)
         text = f"{self.action_name}: {key_text}"
         text_surface = self.font.render(text, True, (255, 255, 255))
         text_rect = text_surface.get_rect(center=self.rect.center)
@@ -146,10 +153,10 @@ class KeybindSelector:
             return True
         return False
     
-    def handle_key(self, key):
+    def handle_key(self, event):
         """Handle key press"""
         if self.listening:
-            self.key = key
+            self.binding = build_keybind_from_event(event)
             self.listening = False
             return True
         return False
@@ -187,10 +194,23 @@ class ScrollModeButton:
 
 class MenuScreen:
     """Main menu screen"""
-    def __init__(self, on_play, on_options, on_quit):
+    def __init__(self, on_play, on_options, on_quit, config=None):
         self.on_play = on_play
         self.on_options = on_options
         self.on_quit = on_quit
+        self.config = config or {}
+        self.title_animation_amplitude = float(self.config.get("title_animation_amplitude_px", 10))
+        self.title_animation_speed = float(self.config.get("title_animation_speed", 0.003))
+        self.title_rotation_degrees = float(self.config.get("title_rotation_degrees", 2.0))
+        self.title_scale_amplitude = float(self.config.get("title_scale_amplitude", 0.025))
+        self.exit_evasion_active = False
+        self.exit_evasion_index = 0
+        self.exit_evasion_radius = float(self.config.get("exit_evasion_radius_px", 170))
+        self.exit_evasion_max_speed = float(self.config.get("exit_evasion_max_speed_px", 520))
+        self.exit_evasion_smoothness = float(self.config.get("exit_evasion_smoothness", 0.18))
+        self.last_mouse_pos = pygame.math.Vector2(pygame.mouse.get_pos())
+        self.last_mouse_ticks = pygame.time.get_ticks()
+        self.mouse_velocity = pygame.math.Vector2()
         
         # Load background
         self.background = self.load_background(get_resource_path("assets", "sprites", "MenuBackGrounds", "Sticky.png"))
@@ -206,6 +226,7 @@ class MenuScreen:
             Button(center_x, 290, width, height, "OPTIONS", self.on_options, get_resource_path("assets", "sprites", "Misc", "MenuButtons", "Options.png")),
             Button(center_x, 430, width, height, "QUIT", self.on_quit, get_resource_path("assets", "sprites", "Misc", "MenuButtons", "Quit.png")),
         ]
+        self.quit_button = self.buttons[-1]
         
         self.font_title = pygame.font.Font(None, 72)
         
@@ -238,14 +259,75 @@ class MenuScreen:
         
         for event in events:
             if event.type == pygame.MOUSEMOTION:
+                self.update_mouse_velocity(event.pos)
                 for button in self.buttons:
                     button.update(mouse_pos)
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.exit_evasion_active:
+                    self.update_exit_evasion(force=True)
+                    mouse_pos = pygame.mouse.get_pos()
                 for button in self.buttons:
                     button.handle_click(mouse_pos)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.on_quit()
+                else:
+                    self.observe_avril_key(event)
+
+    def update_mouse_velocity(self, mouse_pos):
+        """Track mouse speed for the evasive quit button."""
+        now = pygame.time.get_ticks()
+        elapsed = max(1, now - self.last_mouse_ticks)
+        current_pos = pygame.math.Vector2(mouse_pos)
+        self.mouse_velocity = (current_pos - self.last_mouse_pos) * (1000 / elapsed)
+        self.last_mouse_pos = current_pos
+        self.last_mouse_ticks = now
+
+    def observe_avril_key(self, event):
+        """Enable the main-menu easter egg after typing AVRIL."""
+        key_name = pygame.key.name(event.key).upper()
+        if len(key_name) != 1:
+            self.exit_evasion_index = 0
+            return
+
+        expected = AVRIL_SEQUENCE[self.exit_evasion_index]
+        if key_name == expected:
+            self.exit_evasion_index += 1
+            if self.exit_evasion_index == len(AVRIL_SEQUENCE):
+                self.exit_evasion_index = 0
+                self.exit_evasion_active = True
+                debug_logger.info("Easter egg AVRIL active: bouton QUIT evasif.")
+            return
+
+        self.exit_evasion_index = 1 if key_name == AVRIL_SEQUENCE[0] else 0
+
+    def update_exit_evasion(self, force=False):
+        """Move the quit button away from the mouse while keeping it onscreen."""
+        if not self.exit_evasion_active:
+            return
+
+        mouse_pos = pygame.math.Vector2(pygame.mouse.get_pos())
+        button_center = pygame.math.Vector2(self.quit_button.rect.center)
+        away = button_center - mouse_pos
+        distance = away.length()
+        if distance > self.exit_evasion_radius and not force:
+            return
+
+        if distance == 0:
+            away = pygame.math.Vector2(1, 0)
+        else:
+            away = away.normalize()
+
+        speed_factor = min(1.0, self.mouse_velocity.length() / 900)
+        move_distance = 18 + self.exit_evasion_max_speed * speed_factor / 60
+        target_center = button_center + away * move_distance
+        new_center = button_center.lerp(target_center, self.exit_evasion_smoothness)
+
+        half_width = self.quit_button.rect.width / 2
+        half_height = self.quit_button.rect.height / 2
+        new_center.x = max(half_width, min(1280 - half_width, new_center.x))
+        new_center.y = max(half_height, min(720 - half_height, new_center.y))
+        self.quit_button.rect.center = (round(new_center.x), round(new_center.y))
     
     def draw(self, surface):
         """Draw the menu"""
@@ -253,8 +335,14 @@ class MenuScreen:
 
         # Draw menu logo
         if self.logo:
-            logo_rect = self.logo.get_rect(center=(640, 90))
-            surface.blit(self.logo, logo_rect)
+            ticks = pygame.time.get_ticks()
+            sway_x = math.sin(ticks * self.title_animation_speed * 0.6) * (self.title_animation_amplitude * 0.5)
+            bob_y = math.sin(ticks * self.title_animation_speed) * self.title_animation_amplitude
+            rotation = math.sin(ticks * self.title_animation_speed * 0.75) * self.title_rotation_degrees
+            scale = 1.0 + math.sin(ticks * self.title_animation_speed * 1.1) * self.title_scale_amplitude
+            logo_image = pygame.transform.rotozoom(self.logo, rotation, scale)
+            logo_rect = logo_image.get_rect(center=(640 + sway_x, 90 + bob_y))
+            surface.blit(logo_image, logo_rect)
         
         # Draw buttons
         for button in self.buttons:
@@ -262,7 +350,94 @@ class MenuScreen:
     
     def update(self):
         """Update menu state"""
-        pass
+        self.update_exit_evasion()
+
+
+class IntroScreen:
+    """Startup intro screen with a stylized furry lama."""
+    def __init__(self, on_complete, config=None):
+        self.on_complete = on_complete
+        self.config = config or {}
+        self.duration_ms = int(self.config.get("intro_duration_ms", 2400))
+        self.start_tick = pygame.time.get_ticks()
+        self.completed = False
+        self.font_title = pygame.font.Font(None, 74)
+        self.font_subtitle = pygame.font.Font(None, 34)
+        self.font_hint = pygame.font.Font(None, 28)
+
+    def complete(self):
+        """Exit the intro screen once."""
+        if self.completed:
+            return
+        self.completed = True
+        self.on_complete()
+
+    def handle_events(self, events):
+        """Allow the player to skip the intro."""
+        for event in events:
+            if event.type in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
+                self.complete()
+
+    def update(self):
+        """Advance automatically after the configured intro duration."""
+        if pygame.time.get_ticks() - self.start_tick >= self.duration_ms:
+            self.complete()
+
+    def draw(self, surface):
+        """Draw the animated intro artwork."""
+        width, height = surface.get_size()
+        ticks = pygame.time.get_ticks()
+        drift = math.sin(ticks * 0.003) * 8
+        wool = math.sin(ticks * 0.004) * 6
+
+        surface.fill((18, 14, 28))
+
+        glow = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (245, 160, 90, 70), (width // 2, 180), 170)
+        pygame.draw.circle(glow, (130, 90, 200, 55), (width // 2 + 160, 250), 220)
+        pygame.draw.circle(glow, (80, 180, 230, 45), (width // 2 - 170, 260), 200)
+        surface.blit(glow, (0, 0))
+
+        body_color = (224, 208, 180)
+        wool_color = (244, 236, 220)
+        accent_color = (120, 72, 44)
+        center_x = width // 2
+        center_y = int(height * 0.5 + drift)
+
+        pygame.draw.ellipse(surface, body_color, (center_x - 180, center_y - 10, 360, 180))
+        pygame.draw.rect(surface, accent_color, (center_x - 120, center_y + 130, 28, 105), border_radius=10)
+        pygame.draw.rect(surface, accent_color, (center_x - 40, center_y + 140, 28, 105), border_radius=10)
+        pygame.draw.rect(surface, accent_color, (center_x + 35, center_y + 138, 28, 105), border_radius=10)
+        pygame.draw.rect(surface, accent_color, (center_x + 110, center_y + 126, 28, 105), border_radius=10)
+        pygame.draw.rect(surface, body_color, (center_x + 78, center_y - 82, 66, 145), border_radius=22)
+        pygame.draw.ellipse(surface, accent_color, (center_x + 58, center_y - 175, 115, 125))
+        pygame.draw.ellipse(surface, wool_color, (center_x + 36, center_y - 196, 150, 110))
+        pygame.draw.polygon(surface, accent_color, [(center_x + 92, center_y - 178), (center_x + 116, center_y - 248), (center_x + 138, center_y - 182)])
+        pygame.draw.polygon(surface, accent_color, [(center_x + 146, center_y - 176), (center_x + 170, center_y - 248), (center_x + 191, center_y - 184)])
+        pygame.draw.circle(surface, (20, 20, 24), (center_x + 96, center_y - 126), 7)
+        pygame.draw.circle(surface, (20, 20, 24), (center_x + 142, center_y - 124), 7)
+        pygame.draw.line(surface, (70, 30, 30), (center_x + 105, center_y - 90), (center_x + 142, center_y - 90), 3)
+
+        for index, offset in enumerate(range(-110, 130, 40)):
+            radius = 33 + (index % 2) * 4
+            pygame.draw.circle(
+                surface,
+                wool_color,
+                (center_x + offset, int(center_y + (math.sin(ticks * 0.004 + index) * wool))),
+                radius,
+            )
+
+        title = self.font_title.render("GRAND LAMA COSMIQUE VELU", True, (255, 240, 214))
+        title_rect = title.get_rect(center=(width // 2, 92))
+        surface.blit(title, title_rect)
+
+        subtitle = self.font_subtitle.render("Un souffle laineux avant le menu principal", True, (214, 214, 230))
+        subtitle_rect = subtitle.get_rect(center=(width // 2, 142))
+        surface.blit(subtitle, subtitle_rect)
+
+        hint = self.font_hint.render("Press any key or click to skip", True, (210, 210, 210))
+        hint_rect = hint.get_rect(center=(width // 2, height - 52))
+        surface.blit(hint, hint_rect)
 
 
 class OptionsScreen:
@@ -291,11 +466,7 @@ class OptionsScreen:
         
         # Load current keybinds
         for action, selector in self.keybind_selectors.items():
-            key_str = settings.get(f"keybinds.{action}", action)
-            try:
-                selector.key = pygame.key.key_code(key_str)
-            except ValueError:
-                selector.key = pygame.K_a
+            selector.set_binding(normalize_keybind(action, settings.get(f"keybinds.{action}")))
         
         # Scroll mode buttons
         self.scroll_modes = ["downscroll", "upscroll", "sidescroll"]
@@ -305,6 +476,14 @@ class OptionsScreen:
         for i, mode in enumerate(self.scroll_modes):
             self.scroll_mode_buttons[mode] = ScrollModeButton(150 + i * 120, 415, mode)
             self.scroll_mode_buttons[mode].selected = (mode == self.current_scroll_mode)
+
+        self.display_modes = ["windowed", "fullscreen"]
+        self.current_display_mode = settings.get("display.mode", "windowed")
+
+        self.display_mode_buttons = {}
+        for i, mode in enumerate(self.display_modes):
+            self.display_mode_buttons[mode] = ScrollModeButton(150 + i * 170, 505, mode)
+            self.display_mode_buttons[mode].selected = (mode == self.current_display_mode)
         
         # Back button
         self.back_button = Button(50, 650, 200, 50, "BACK", self.on_back)
@@ -345,8 +524,11 @@ class OptionsScreen:
                         break
                 
                 # Check keybind selectors
-                for selector in self.keybind_selectors.values():
-                    selector.handle_click(mouse_pos)
+                for action, selector in self.keybind_selectors.items():
+                    if selector.handle_click(mouse_pos):
+                        for other_action, other_selector in self.keybind_selectors.items():
+                            if other_action != action:
+                                other_selector.listening = False
                 
                 # Check scroll mode buttons
                 for mode, button in self.scroll_mode_buttons.items():
@@ -356,6 +538,14 @@ class OptionsScreen:
                             b.selected = False
                         button.selected = True
                         self.save_settings()  # Auto-save when scroll mode changes
+
+                for mode, button in self.display_mode_buttons.items():
+                    if button.handle_click(mouse_pos):
+                        self.current_display_mode = mode
+                        for b in self.display_mode_buttons.values():
+                            b.selected = False
+                        button.selected = True
+                        self.save_settings()
                 
                 # Check buttons
                 self.back_button.handle_click(mouse_pos)
@@ -368,18 +558,19 @@ class OptionsScreen:
                     self.save_settings()  # Auto-save when slider is released
                 
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                listening_action = self.get_listening_action()
+                if listening_action:
+                    if event.key == pygame.K_ESCAPE:
+                        self.keybind_selectors[listening_action].listening = False
+                    else:
+                        selector = self.keybind_selectors[listening_action]
+                        previous_binding = clone_keybind(selector.binding)
+                        if selector.handle_key(event):
+                            self.resolve_duplicate_keybinds(listening_action, previous_binding)
+                            self.save_settings()
+                elif event.key == pygame.K_ESCAPE:
                     self.save_settings()
                     self.on_back()
-                else:
-                    # Pass key to keybind selectors
-                    for selector in self.keybind_selectors.values():
-                        if selector.listening:
-                            old_key = selector.key
-                            selector.handle_key(event.key)
-                            if old_key != selector.key:
-                                self.save_settings()  # Auto-save when keybind changes
-                            break
                 
             elif event.type == pygame.KEYUP:
                 pass  # Scroll mode button clicks
@@ -388,6 +579,25 @@ class OptionsScreen:
     def handle_scroll_mode_click(self, mode):
         """Handle scroll mode button click"""
         self.current_scroll_mode = mode
+
+    def get_listening_action(self):
+        """Return the currently armed keybind selector."""
+        for action, selector in self.keybind_selectors.items():
+            if selector.listening:
+                return action
+        return None
+
+    def resolve_duplicate_keybinds(self, changed_action, previous_binding):
+        """Keep one unique keybind per lane by swapping duplicate captures."""
+        changed_selector = self.keybind_selectors[changed_action]
+        for action, selector in self.keybind_selectors.items():
+            if action == changed_action:
+                continue
+            if bindings_conflict(changed_selector.binding, selector.binding):
+                replacement = previous_binding or default_keybind(action)
+                selector.set_binding(replacement)
+                selector.listening = False
+                break
     
     def reset_settings(self):
         """Reset settings to defaults"""
@@ -400,20 +610,26 @@ class OptionsScreen:
         # Save volume
         for i, slider in enumerate(self.sliders):
             if i == 0:
-                self.settings.set("volume.master", slider.value)
+                self.settings.set("volume.master", slider.value, autosave=False)
             elif i == 1:
-                self.settings.set("volume.music", slider.value)
+                self.settings.set("volume.music", slider.value, autosave=False)
             elif i == 2:
-                self.settings.set("volume.effects", slider.value)
+                self.settings.set("volume.effects", slider.value, autosave=False)
         
         # Save keybinds
         for action, selector in self.keybind_selectors.items():
-            if selector.key:
-                key_name = pygame.key.name(selector.key)
-                self.settings.set(f"keybinds.{action}", key_name)
+            self.settings.set(
+                f"keybinds.{action}",
+                clone_keybind(selector.binding) or default_keybind(action),
+                autosave=False,
+            )
         
         # Save scroll mode
-        self.settings.set("scroll_mode", self.current_scroll_mode)
+        self.settings.set("scroll_mode", self.current_scroll_mode, autosave=False)
+
+        # Save display mode
+        self.settings.set("display.mode", self.current_display_mode, autosave=False)
+        self.settings.save_settings()
     
     def draw(self, surface):
         """Draw the options menu"""
@@ -438,6 +654,20 @@ class OptionsScreen:
         # Draw keybind selectors
         for selector in self.keybind_selectors.values():
             selector.draw(surface)
+
+        keybind_hint = self.font_small.render(
+            "AZERTY/QWERTY: binds follow the physical key position.",
+            True,
+            (200, 210, 230),
+        )
+        surface.blit(keybind_hint, (800, 345))
+
+        capture_hint = self.font_small.render(
+            "Click a lane, press a key, ESC cancels capture.",
+            True,
+            (180, 190, 210),
+        )
+        surface.blit(capture_hint, (800, 368))
         
         # Draw scroll mode section
         scroll_title = self.font_small.render("SCROLL MODE", True, (150, 200, 255))
@@ -445,6 +675,12 @@ class OptionsScreen:
         
         # Draw scroll mode buttons
         for button in self.scroll_mode_buttons.values():
+            button.draw(surface)
+
+        display_title = self.font_small.render("DISPLAY MODE", True, (150, 200, 255))
+        surface.blit(display_title, (150, 470))
+
+        for button in self.display_mode_buttons.values():
             button.draw(surface)
         
         # Draw buttons

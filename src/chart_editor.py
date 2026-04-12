@@ -10,8 +10,9 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.chart_compat import get_default_export_path, load_chart_file, serialize_chart
 from src.logging_utils import configure_logging, get_debug_logger, get_user_logger
-from src.resources import get_resource_path
+from src.resources import get_project_root, get_resource_path
 
 
 configure_logging()
@@ -25,6 +26,7 @@ class ChartEditor:
         self.audio_available = self.init_audio()
 
         self.chart_file = Path(chart_file or get_resource_path("data", "charts", "test_song.json"))
+        self.export_chart_file = self.chart_file
 
         self.config = {
             "width": 1400,
@@ -41,7 +43,10 @@ class ChartEditor:
         self.load_chart()
 
         self.song_files = self.find_song_files()
-        self.selected_song_index = 0
+        self.character_folders = self.find_character_folders()
+        self.selected_song_index = self.get_initial_song_index()
+        self.selected_player_index = self.get_initial_character_index("player", "Player")
+        self.selected_enemy_index = self.get_initial_character_index("enemy", "EnemyTest")
         self.loaded_song_path = None
         self.song_name = "No song loaded"
 
@@ -85,8 +90,8 @@ class ChartEditor:
     def load_chart(self):
         """Load chart from file"""
         if self.chart_file.exists():
-            with open(self.chart_file, 'r', encoding="utf-8") as f:
-                self.chart = json.load(f)
+            self.chart = load_chart_file(self.chart_file)
+            self.export_chart_file = get_default_export_path(self.chart_file, self.chart)
         else:
             self.chart = {
                 "name": "New Song",
@@ -94,25 +99,84 @@ class ChartEditor:
                 "offset": 0,
                 "notes": []
             }
+            self.export_chart_file = self.chart_file
 
     def save_chart(self):
         """Save chart to file"""
-        self.chart_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.chart_file, 'w', encoding="utf-8") as f:
-            json.dump(self.chart, f, indent=2)
-        user_logger.info("Chart sauvegarde: %s", self.chart_file)
+        self.update_chart_characters()
+        self.export_chart_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.export_chart_file, 'w', encoding="utf-8") as f:
+            json.dump(serialize_chart(self.chart), f, indent=2)
+        user_logger.info("Chart sauvegarde: %s", self.export_chart_file)
 
     def find_song_files(self):
         """Find songs in assets/Songs"""
-        song_dir = get_resource_path("assets", "Songs")
-        if not song_dir.exists():
+        song_files = []
+        search_roots = [
+            get_resource_path("assets", "Songs"),
+            get_resource_path("test-data", "music"),
+        ]
+        for song_dir in search_roots:
+            if not song_dir.exists():
+                continue
+            for extension in ("*.mp3", "*.ogg", "*.wav"):
+                song_files.extend(sorted(song_dir.rglob(extension)))
+        return [str(path) for path in song_files]
+
+    def find_character_folders(self):
+        """Find available character folders."""
+        character_root = get_resource_path("assets", "sprites", "Characters")
+        if not character_root.exists():
             return []
-        files = (
-            sorted(song_dir.glob("*.mp3"))
-            + sorted(song_dir.glob("*.ogg"))
-            + sorted(song_dir.glob("*.wav"))
-        )
-        return [str(path) for path in files]
+        return [path.name for path in sorted(character_root.iterdir()) if path.is_dir()]
+
+    def get_initial_song_index(self):
+        """Prefer the audio declared by the loaded chart when available."""
+        audio_path = self.chart.get("audio")
+        if not audio_path:
+            return 0
+
+        candidate = get_project_root().joinpath(*Path(audio_path).parts)
+        candidate_text = str(candidate)
+        for index, song_file in enumerate(self.song_files):
+            if Path(song_file) == candidate or song_file == candidate_text:
+                return index
+        return 0
+
+    def get_initial_character_index(self, chart_key, default_name):
+        """Return the selected character index for a chart role."""
+        if not self.character_folders:
+            return 0
+
+        character_name = self.chart.get(chart_key) or default_name
+        if character_name in self.character_folders:
+            return self.character_folders.index(character_name)
+        return 0
+
+    def selected_character(self, index):
+        """Return a character folder name by index."""
+        if not self.character_folders:
+            return None
+        return self.character_folders[index % len(self.character_folders)]
+
+    def update_chart_characters(self):
+        """Persist selected player/enemy folders in the chart."""
+        player = self.selected_character(self.selected_player_index)
+        enemy = self.selected_character(self.selected_enemy_index)
+        if player:
+            self.chart["player"] = player
+        if enemy:
+            self.chart["enemy"] = enemy
+
+    def set_chart_audio_from_loaded_song(self):
+        """Persist the selected preview audio as a project-relative chart audio path."""
+        if not self.loaded_song_path:
+            return
+        loaded_path = Path(self.loaded_song_path)
+        try:
+            self.chart["audio"] = loaded_path.resolve().relative_to(get_project_root()).as_posix()
+        except ValueError:
+            self.chart["audio"] = loaded_path.as_posix()
 
     def load_song(self, index):
         """Load a song from assets/Songs"""
@@ -120,6 +184,7 @@ class ChartEditor:
             return
         self.loaded_song_path = self.song_files[index]
         self.song_name = Path(self.loaded_song_path).stem
+        self.set_chart_audio_from_loaded_song()
         if not self.audio_available:
             self.song_name = f"{self.song_name} (audio disabled)"
             return
@@ -217,6 +282,12 @@ class ChartEditor:
                         self.load_song(self.selected_song_index)
                 elif event.key == pygame.K_RETURN:
                     self.load_song(self.selected_song_index)
+                elif event.key == pygame.K_p and self.character_folders:
+                    self.selected_player_index = (self.selected_player_index + 1) % len(self.character_folders)
+                    self.update_chart_characters()
+                elif event.key == pygame.K_o and self.character_folders:
+                    self.selected_enemy_index = (self.selected_enemy_index + 1) % len(self.character_folders)
+                    self.update_chart_characters()
                 elif event.key == pygame.K_c:
                     if pygame.key.get_mods() & pygame.KMOD_SHIFT:
                         self.chart['notes'] = []
@@ -274,7 +345,7 @@ class ChartEditor:
             song_text,
             f"Status: {status_text} | Mode: {self.preview_mode}",
             f"Song selection: {song_selection}",
-            "TAB: next song | SHIFT+TAB: prev song | ENTER: load song | SPACE: play/pause",
+            "TAB: audio | ENTER: load | P: player | O: enemy | SPACE: play/pause",
         ]
 
         for i, text in enumerate(info_texts):
@@ -379,7 +450,8 @@ class ChartEditor:
         info_texts = [
             f"Scroll: {self.scroll_offset:.0f}ms | Zoom: {self.pixels_per_ms:.2f}px/ms | BPM: {self.bpm}",
             f"Notes: {len(self.chart['notes'])} | Song: {self.chart.get('name', 'New Song')}",
-            "Left/Right: Scroll | Up/Down: Zoom | Click: Add | Right Click: Delete | CTRL+S: Save",
+            f"Versus: {self.chart.get('player', 'Player')} vs {self.chart.get('enemy', 'EnemyTest')}",
+            f"Left/Right: Scroll | Up/Down: Zoom | Click: Add | Right Click: Delete | CTRL+S: Save -> {self.export_chart_file.name}",
         ]
         for i, text in enumerate(info_texts):
             surface = font.render(text, True, (200, 200, 200))

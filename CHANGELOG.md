@@ -1,7 +1,23 @@
 # Changelog
 
 ## 2026-04-12
+- correction du bug `player is enemy` : le personnage joueur reste a droite et les hits reussis animent maintenant `self.player`
+- ajout des champs de chart optionnels `player` et `enemy` pour choisir les dossiers de personnages depuis `assets/sprites/Characters/`
+- extension de l'editeur de charts : selection audio par `TAB`, joueur par `P`, ennemi par `O`, puis export JSON natif jouable
+- ajout de l'easter egg `AVRIL` sur le menu principal : le bouton `QUIT` fuit la souris sans sortir de la fenetre
+- ajout des options configurables `menu.exit_evasion_radius_px`, `menu.exit_evasion_max_speed_px` et `menu.exit_evasion_smoothness`
+- ajout de la reinitialisation des logs au demarrage avec conservation de 3 archives nommees `<logname>.0.log` a `<logname>.2.log`
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:24:19 +02:00`
+- correction de la task VS Code `Run FNF Game` pour utiliser le Python du `.venv` du projet au lieu d'un chemin machine-specific obsolete
+- correction d'un crash `UnboundLocalError` au lancement d'un morceau en free play avec `SPACE` apres la refonte des keybinds
+- recreation automatique de `data/config.json` et `data/settings.json` quand les fichiers manquent, sont invalides ou incomplets
+- stabilisation des keybinds avec un schema persistant `key/scancode/display` et migration automatique des anciens binds texte
+- support layout-stable des touches physiques entre qwerty et azerty, avec resolution des doublons dans les options
+- ajout d'un ecran d'intro skippable avec un grand lama velu avant l'arrivee au menu principal
+- ajout d'une animation legere du titre sur la frontpage pour renforcer l'appel visuel du menu principal
+- ajout d'un mode d'affichage `windowed/fullscreen` persistant dans les options et applique au runtime
 - ajout d'un easter egg Konami Code actif en gameplay, pause et options ouvertes depuis la pause
+- durcissement du tracker Konami : reset sur perte de focus et changement d'etat, message masque hors contexte ingame
 - ouverture du lien `https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1` via le navigateur par defaut avec cooldown anti-spam
 - affichage ingame du message exact `You've been so fuckin rick Rolled dude ! Ahah bad chance`
 - documentation de la limite navigateur : `autoplay=1` peut etre bloque par la politique locale du navigateur

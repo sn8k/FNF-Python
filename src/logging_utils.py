@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
+import time
 from logging import Handler
 from pathlib import Path
 from typing import Any
@@ -38,6 +40,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "lanes": 4,
     "note_size": 60,
+    "menu": {
+        "intro_enabled": True,
+        "intro_duration_ms": 2400,
+        "title_animation_amplitude_px": 10,
+        "title_animation_speed": 0.003,
+        "title_rotation_degrees": 2.0,
+        "title_scale_amplitude": 0.025,
+        "exit_evasion_radius_px": 170,
+        "exit_evasion_max_speed_px": 520,
+        "exit_evasion_smoothness": 0.18,
+    },
     "logging": {
         "directory": "logs",
         "user": {
@@ -71,18 +84,32 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return merged
 
 
+def _write_json_file(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as config_file:
+        json.dump(payload, config_file, indent=2)
+        config_file.write("\n")
+
+
 def load_project_config(config_path: Path | None = None) -> dict[str, Any]:
     path = config_path or CONFIG_PATH
+    loaded_config: dict[str, Any] = {}
+    should_persist = False
+
     if not path.exists():
-        return _deep_merge(DEFAULT_CONFIG, {})
+        should_persist = True
+    else:
+        try:
+            with open(path, "r", encoding="utf-8") as config_file:
+                loaded_config = json.load(config_file)
+        except (json.JSONDecodeError, OSError):
+            should_persist = True
 
-    try:
-        with open(path, "r", encoding="utf-8") as config_file:
-            loaded_config = json.load(config_file)
-    except (json.JSONDecodeError, OSError):
-        return _deep_merge(DEFAULT_CONFIG, {})
+    merged_config = _deep_merge(DEFAULT_CONFIG, loaded_config)
+    if should_persist or merged_config != loaded_config:
+        _write_json_file(path, merged_config)
 
-    return _deep_merge(DEFAULT_CONFIG, loaded_config)
+    return merged_config
 
 
 def _normalize_level(level_name: str, default: int) -> int:
@@ -118,7 +145,7 @@ def _build_handlers(
     log_file_name = logger_config.get("file")
     if log_file_name:
         log_directory.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_directory / log_file_name, encoding="utf-8")
+        file_handler = logging.FileHandler(log_directory / log_file_name, mode="w", encoding="utf-8")
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
         handlers.append(file_handler)
@@ -126,10 +153,71 @@ def _build_handlers(
     return handlers, level
 
 
+def _rotated_log_path(log_directory: Path, log_file_name: str, index: int) -> Path:
+    path = Path(log_file_name)
+    suffix = path.suffix or ".log"
+    stem = path.stem if path.suffix else path.name
+    return log_directory / f"{stem}.{index}{suffix}"
+
+
+def rotate_log_file(log_directory: Path, log_file_name: str, keep: int = 3) -> None:
+    """Archive the previous startup logs and leave the active log empty."""
+    if keep <= 0:
+        return
+
+    current_log = log_directory / log_file_name
+    if not current_log.exists():
+        return
+
+    log_directory.mkdir(parents=True, exist_ok=True)
+    oldest_log = _rotated_log_path(log_directory, log_file_name, keep - 1)
+    if oldest_log.exists():
+        oldest_log.unlink()
+
+    for index in range(keep - 2, -1, -1):
+        source = _rotated_log_path(log_directory, log_file_name, index)
+        if source.exists():
+            _replace_with_retry(source, _rotated_log_path(log_directory, log_file_name, index + 1))
+
+    target = _rotated_log_path(log_directory, log_file_name, 0)
+    if not _replace_with_retry(current_log, target):
+        try:
+            shutil.copy2(current_log, target)
+        except OSError:
+            pass
+
+
+def _replace_with_retry(source: Path, target: Path, attempts: int = 5) -> bool:
+    for attempt in range(attempts):
+        try:
+            source.replace(target)
+            return True
+        except PermissionError:
+            if attempt == attempts - 1:
+                break
+            time.sleep(0.1)
+    return False
+
+
+def rotate_configured_logs(logging_config: dict[str, Any], log_directory: Path) -> None:
+    """Rotate all configured project log files once during logging setup."""
+    rotated_files: set[str] = set()
+    for stream_name in ("user", "debug"):
+        logger_config = logging_config.get(stream_name, {})
+        log_file_name = logger_config.get("file")
+        if not log_file_name or log_file_name in rotated_files:
+            continue
+        rotate_log_file(log_directory, log_file_name)
+        rotated_files.add(log_file_name)
+
+
 def configure_logging(config_path: Path | None = None) -> dict[str, Any]:
     config = load_project_config(config_path)
     logging_config = config.get("logging", {})
     log_directory = get_resource_path(logging_config.get("directory", "logs"))
+    _clear_handlers(logging.getLogger("fnf.user"))
+    _clear_handlers(logging.getLogger("fnf.debug"))
+    rotate_configured_logs(logging_config, log_directory)
 
     user_formatter = logging.Formatter("%(asctime)s | USER | %(levelname)s | %(message)s")
     debug_formatter = logging.Formatter(

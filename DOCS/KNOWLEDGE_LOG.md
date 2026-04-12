@@ -1,6 +1,27 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- piege : le joueur etait bien place a droite, mais les hits reussis animaient `self.opponent`, ce qui donnait l'impression que l'utilisateur jouait le personnage de gauche
+- correction : `try_hit_notes()` anime maintenant `self.player`, et les champs de chart `player`/`enemy` permettent de choisir les dossiers de personnages a charger
+- piege : l'editeur de charts devait choisir musique et versus sans casser le schema plat `name/bpm/offset/notes`
+- correction : `src.chart_editor` sauvegarde `audio`, `player` et `enemy` dans le chart natif, avec selection par `TAB`, `P` et `O`
+- decision : l'easter egg `AVRIL` reste limite au menu principal et ses parametres de fuite sont exposes dans `data/config.json`
+- piege : ouvrir les nouveaux handlers avant d'archiver les logs peut verrouiller `user.log` ou `debug.log` sous Windows
+- correction : `configure_logging()` ferme les handlers existants, archive l'ancien log en `<logname>.0.log`, decale les anciennes copies jusqu'a `<logname>.2.log`, puis ouvre un fichier actif neuf en mode `w`
+- piege : un processus Windows peut garder un handle de log quelques instants apres un smoke stop force
+- correction : la rotation retente les renommages avant de degrader en copie d'archive, afin de ne pas bloquer le demarrage
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:24:19 +02:00`
+- piege : la task VS Code `Run FNF Game` pointait vers `C:/Users/Luka/.../python3.13.exe`, un chemin machine-specific qui casse le smoke launch sur un autre poste
+- correction : `.vscode/tasks.json` lance maintenant `main.py` via `${workspaceFolder}/.venv/Scripts/python.exe`
+- piege : le handler `KEYDOWN` de `Game.handle_events()` testait `lane is not None` meme apres les branches `ESC` et `SPACE`, ce qui faisait crasher le lancement d'un morceau avec `UnboundLocalError`
+- correction : `lane` est initialise a `None` avant le dispatch clavier du mode `PLAYING`, ce qui garde `SPACE` et `ESC` hors du flux de frappe des notes
+- piege : `load_project_config()` savait fournir des defaults en memoire mais ne recreait pas `data/config.json` si le fichier manquait ou devenait invalide
+- correction : `load_project_config()` ecrit maintenant la fusion des defaults sur disque quand `data/config.json` manque, est invalide ou ne contient pas les nouvelles cles
+- piege : les keybinds sauvegardes comme simples noms de touches logiques derivent selon le layout et ne garantissent pas la meme touche physique entre qwerty et azerty
+- correction : `src.keybinds` stocke `key`, `scancode` et `display`, migre les anciens binds `q/z` vers les positions physiques `A/W`, et le runtime matche d'abord les `scancode`
+- piege : des doublons de keybinds rendent le gameplay ambigu car une seule lane gagne lors du premier match d'evenement
+- correction : `OptionsScreen.resolve_duplicate_keybinds()` echange les binds quand l'utilisateur capture une touche deja utilisee
+- verification : un script headless temporaire avec `SDL_VIDEODRIVER=dummy` et `SDL_AUDIODRIVER=dummy` a valide la recreation des JSON, la migration des anciens binds et le matching `K_q + KSCAN_A` puis `K_z + KSCAN_W`
 - piege : le projet utilisait des `print()` disperses dans plusieurs modules, sans separation claire entre messages utilisateur et details techniques
 - correction : ajout d'un module central `src/logging_utils.py` avec deux familles de loggers, `user` et `debug`
 - piege : `data/config.json` n'avait aucune reference pour piloter les logs
@@ -49,6 +70,10 @@
 - piege : `restart` ne doit pas reconstruire le chart depuis le nom affiche, car le nom JSON et le nom de fichier peuvent diverger
 - correction : `current_song_key` est renseigne par `play_song()` et sert de source de verite pour `restart_current_song()`
 - limite documentee : le story mode actuel lance encore uniquement le premier morceau d'une week ; la pause nettoie `current_week` sur `QUIT`, mais l'enchainement multi-song reste hors scope courant
+- piege : le feedback visuel du Konami Code pouvait rester affichable hors contexte ingame si l'utilisateur quittait rapidement la partie puis ouvrait les options du menu principal
+- correction : `draw_konami_message()` verifie maintenant `is_ingame_context()` et les retours au menu nettoient aussi le feedback temporaire
+- piege : le buffer du Konami Code n'etait pas purge sur perte de focus ni sur certaines transitions entre `PLAYING`, `PAUSED` et `OPTIONS`
+- correction : le runtime remet la sequence a zero sur les evenements de focus SDL/Pygame et sur les changements d'etat relies au flow ingame
 - reference : documentation Python consultee pour `webbrowser.open()` : https://docs.python.org/3/library/webbrowser.html
 - reference : documentation MDN consultee sur les politiques d'autoplay navigateur : https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay
 - decision : le tracker Konami est centralise dans `Game.handle_events()` pour observer les `KEYDOWN` sans interrompre les controles normaux
@@ -58,3 +83,10 @@
 - piege : l'ouverture du navigateur peut echouer ou ne pas confirmer l'ouverture
 - correction : `webbrowser.open()` est appele dans un thread daemon avec journalisation explicite des exceptions et des retours `False`
 - limite documentee : `autoplay=1` demande l'autoplay, mais le navigateur peut le bloquer si sa politique locale refuse l'audio automatique
+- piege : la fusion superficielle de `data/settings.json` suffit tant que tous les sous-blocs existent deja, mais casse la retrocompatibilite des nouveaux reglages imbriques comme `display.mode`
+- correction : `Settings.load_settings()` utilise maintenant une fusion recursive pour conserver les nouveaux defaults imbriques avec les anciens fichiers utilisateur
+- piege : le mode plein ecran doit rester persistant sans recreer la fenetre a chaque simple sauvegarde de volume ou de keybind
+- correction : `Game.apply_display_mode()` memorise le mode courant et ne rappelle `pygame.display.set_mode()` que si le mode demande change reellement ou si l'initialisation le force
+- decision : garder une resolution logique 1280x720 aussi bien en fenetre qu'en plein ecran limite l'impact sur les coordonnees UI et le rendu existant
+- decision : un `GameState.INTRO` dedie simplifie l'ecran d'intro skippable sans polluer `MenuScreen` ni la boucle de gameplay
+- verification : les nouvelles features `intro`, `display.mode` et menu anime ont ete verifiees en headless avec `SDL_VIDEODRIVER=dummy`, ainsi qu'un lancement court de `main.main()` avec fermeture controlee
