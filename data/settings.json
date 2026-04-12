@@ -1,0 +1,36 @@
+{
+  "keybinds": {
+    "left": "a",
+    "down": "s",
+    "up": "w",
+    "right": "d"
+  },
+  "note_colors": {
+    "left": [
+      255,
+      0,
+      0
+    ],
+    "down": [
+      0,
+      255,
+      0
+    ],
+    "up": [
+      0,
+      0,
+      255
+    ],
+    "right": [
+      255,
+      255,
+      0
+    ]
+  },
+  "scroll_mode": "downscroll",
+  "volume": {
+    "master": 70,
+    "music": 70,
+    "effects": 70
+  }
+}

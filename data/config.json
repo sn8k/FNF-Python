@@ -1,0 +1,39 @@
+{
+  "window": {
+    "width": 1280,
+    "height": 720,
+    "fps": 60
+  },
+  "gameplay": {
+    "spawn_distance": 500,
+    "hit_window": 150,
+    "perfect_range": 25,
+    "great_range": 50,
+    "good_range": 100,
+    "bad_range": 150
+  },
+  "scoring": {
+    "perfect": 350,
+    "great": 200,
+    "good": 100,
+    "bad": 0,
+    "miss": 0
+  },
+  "lanes": 4,
+  "note_size": 60,
+  "logging": {
+    "directory": "logs",
+    "user": {
+      "enabled": true,
+      "level": "INFO",
+      "file": "user.log",
+      "console": true
+    },
+    "debug": {
+      "enabled": true,
+      "level": "DEBUG",
+      "file": "debug.log",
+      "console": false
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Week 1",
+  "songs": [
+    "test_song"
+  ],
+  "enemies": [
+    "test_enemy"
+  ],
+  "background": "Sticky.png"
+}
