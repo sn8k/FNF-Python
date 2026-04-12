@@ -10,7 +10,8 @@
     "perfect_range": 25,
     "great_range": 50,
     "good_range": 100,
-    "bad_range": 150
+    "bad_range": 150,
+    "note_approach_time_ms": 1500
   },
   "scoring": {
     "perfect": 350,
@@ -21,6 +22,17 @@
   },
   "lanes": 4,
   "note_size": 60,
+  "menu": {
+    "intro_enabled": true,
+    "intro_duration_ms": 2400,
+    "title_animation_amplitude_px": 10,
+    "title_animation_speed": 0.003,
+    "title_rotation_degrees": 2.0,
+    "title_scale_amplitude": 0.025,
+    "exit_evasion_radius_px": 170,
+    "exit_evasion_max_speed_px": 520,
+    "exit_evasion_smoothness": 0.18
+  },
   "logging": {
     "directory": "logs",
     "user": {

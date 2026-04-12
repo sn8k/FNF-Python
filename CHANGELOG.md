@@ -1,9 +1,75 @@
 # Changelog
 
 ## 2026-04-12
+- correction des menus Pygame : la molette de souris ne declenche plus les boutons ni controles ingame, seuls les clics gauche sont acceptes
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:50:38 +02:00`
+- correction du hint ingame : les controles affiches utilisent maintenant les keybinds configures au lieu de `w/a/s/d` en dur
+- activation automatique de l'easter egg `AVRIL` tous les 1er avril
+- ajout d'un choix de difficulte avant lancement quand plusieurs variantes de chart existent
+- detection des difficultes via les suffixes `-easy`, `-hard`, et normalisation des fichiers sans suffixe en `normal`
+- affichage de la version projet dans le coin haut droit des options
+- ajout de `src/project_version.py` comme source de version locale
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:45:24 +02:00`
+- correction du layout du Chart Editor : les informations de chart, preview et controles sont regroupees dans un panneau bas unique pour eviter la superposition visible
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:40:56 +02:00`
+- ajout de `menu.bat`, un menu Windows pour lancer le jeu, ouvrir le Chart Editor ou afficher les derniers logs
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:39:20 +02:00`
+- correction du bug `player is enemy` : le personnage joueur reste a droite et les hits reussis animent maintenant `self.player`
+- ajout des champs de chart optionnels `player` et `enemy` pour choisir les dossiers de personnages depuis `assets/sprites/Characters/`
+- extension de l'editeur de charts : selection audio par `TAB`, joueur par `P`, ennemi par `O`, puis export JSON natif jouable
+- ajout de l'easter egg `AVRIL` sur le menu principal : le bouton `QUIT` fuit la souris sans sortir de la fenetre
+- ajout des options configurables `menu.exit_evasion_radius_px`, `menu.exit_evasion_max_speed_px` et `menu.exit_evasion_smoothness`
+- ajout de la reinitialisation des logs au demarrage avec conservation de 3 archives nommees `<logname>.0.log` a `<logname>.2.log`
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:24:19 +02:00`
+- correction de la task VS Code `Run FNF Game` pour utiliser le Python du `.venv` du projet au lieu d'un chemin machine-specific obsolete
+- correction d'un crash `UnboundLocalError` au lancement d'un morceau en free play avec `SPACE` apres la refonte des keybinds
+- recreation automatique de `data/config.json` et `data/settings.json` quand les fichiers manquent, sont invalides ou incomplets
+- stabilisation des keybinds avec un schema persistant `key/scancode/display` et migration automatique des anciens binds texte
+- support layout-stable des touches physiques entre qwerty et azerty, avec resolution des doublons dans les options
+- ajout d'un ecran d'intro skippable avec un grand lama velu avant l'arrivee au menu principal
+- ajout d'une animation legere du titre sur la frontpage pour renforcer l'appel visuel du menu principal
+- ajout d'un mode d'affichage `windowed/fullscreen` persistant dans les options et applique au runtime
+- ajout d'un easter egg Konami Code actif en gameplay, pause et options ouvertes depuis la pause
+- durcissement du tracker Konami : reset sur perte de focus et changement d'etat, message masque hors contexte ingame
+- ouverture du lien `https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1` via le navigateur par defaut avec cooldown anti-spam
+- affichage ingame du message exact `You've been so fuckin rick Rolled dude ! Ahah bad chance`
+- documentation de la limite navigateur : `autoplay=1` peut etre bloque par la politique locale du navigateur
+- mise a jour du backlog `TODOs/2026-04-12_konami_code_rickroll.md`, du README et des bibles projet
+- ajout d'un menu pause ingame accessible avec `ESC` pendant une partie
+- ajout des actions pause `RESUME`, `OPTIONS`, `RESTART` et `QUIT`
+- conservation de l'etat de partie pendant `RESUME` : score, combo, timer, notes spawn et audio restent coherents
+- retour des options vers le menu pause quand elles sont ouvertes en contexte ingame
+- ajout de `current_song_key` pour relancer le chart courant via `RESTART` sans heuristique sur le nom affiche
+- mise a jour du backlog `TODOs/2026-04-12_pause_ingame_menu.md`, du README et des bibles projet
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `03:58:29 +02:00`
+- correction du lancement de `python -m src.chart_editor` par ajout d'un point d'entree `main()`
+- ajout d'un fallback audio dans l'editeur de charts : l'editeur reste utilisable si `pygame.mixer` est indisponible
+- ajout d'un point d'entree CLI a `python -m src.week_manager` pour verifier les weeks et charts disponibles
+- correction du chargement audio en jeu : recherche d'un fichier relatif via `audio`, puis dans `assets/Songs/` en `.mp3`, `.ogg` ou `.wav`
+- ajout de `gameplay.note_approach_time_ms` dans `data/config.json` pour configurer le temps d'approche des notes
+- correction du spawn des notes en jeu : configuration complete transmise a `Note`, timing en millisecondes et reset des notes par chart
+- alignement de `data/charts/2hot BF mix.json` avec le schema documente par ajout de `audio` et `offset`
+- ajout de `requirements-dev.txt` avec la dependance PyInstaller
+- alignement de `requirements.txt` sur `pygame>=2.5.0`
+- ajout des specs `packaging/pyinstaller/fnf_release.spec` et `packaging/pyinstaller/fnf_debug.spec`
+- ajout des scripts `scripts/build.ps1`, `scripts/build_release.bat` et `scripts/build_debug.bat`
+- ajout d'une archive redistribuable automatique dans `artifacts/` apres build
+- ajout d'un retry d'archivage pour les verrous temporaires Windows apres PyInstaller
+- reduction des warnings et de la taille PyInstaller par exclusion de paquets optionnels non utilises
+- ajout d'un `.gitignore` pour les artefacts de build, caches Python et logs generes
+- mise a jour de `README.md`, `DOCS/USER_BIBLE.md`, `DOCS/DEVELOPER_BIBLE.md` et `DOCS/KNOWLEDGE_LOG.md`
+- deplacement des rapports traites vers `BUGS/Fixed/`
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `03:51:33 +02:00`
+- note de verification : `git status --short --branch` a ete execute avec succes dans cet environnement
 - mise en place d'un systeme de logs central configurable via `data/config.json`
 - ajout de deux canaux de logs distincts : `user` et `debug`
 - migration des sorties `print()` principales vers le systeme de logs dans `main.py`, `setup_check.py` et les modules `src/`
 - ajout d'une documentation projet minimale sur la politique de logs dans `DOCS/`
 - note de verification : la date `2026-04-12` a ete verifiee localement via la commande systeme
 - note de verification : l'etat Git n'a pas pu etre verifie dans cet environnement car `git` n'etait pas disponible
+- ajout d'un `.gitignore` pour les caches Python, environnements virtuels, logs generes, secrets locaux, caches d'outils et sorties de build
+- retrait de l'index Git des caches Python et logs generes deja suivis, sans suppression locale des fichiers
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date -Format yyyy-MM-dd`
+- ajout d'un backlog multi-agents dans `TODOs/2026-04-12_pause_ingame_menu.md` pour implementer une pause ingame avec menu `reprendre/options/restart/quit`
+- ajout d'un second backlog multi-agents dans `TODOs/2026-04-12_konami_code_rickroll.md` pour implementer un easter egg Konami Code ouvrant un Rickroll et affichant un message ingame dedie
+- note de verification : les regles `.gitignore` ont ete verifiees avec `git check-ignore`

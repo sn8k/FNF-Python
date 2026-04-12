@@ -1,9 +1,109 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- piege : sous Pygame, la molette peut arriver comme un `MOUSEBUTTONDOWN` bouton 4/5 selon les chemins SDL, ce qui activait les boutons sous la souris
+- correction : les handlers de menus filtrent maintenant les activations UI sur `event.button == 1`, pour ignorer la molette en contexte ingame et menu
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:50:38 +02:00`
+- piege : le hint ingame affichait encore `w/a/s/d` en dur, ce qui contredisait les keybinds configurables
+- correction : `Game.draw_ui()` construit le hint avec `binding_label()` et les keybinds normalises en memoire
+- decision : le Free Play liste les chansons, puis un menu de difficulte apparait seulement quand plusieurs variantes existent
+- convention : les fichiers `*-easy.json` et `*-hard.json` declarent easy/hard ; le fichier sans suffixe est normal
+- correction : `MenuScreen` active automatiquement l'easter egg `AVRIL` le 1er avril via la date locale
+- decision : le numero de version projet vit dans `src/project_version.py` et est affiche dans `OptionsScreen`
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:45:24 +02:00`
+- piege : `draw_song_panel()` et `draw_ui()` dessinaient tous les deux dans la zone basse du Chart Editor, ce qui superposait les textes comme sur la capture utilisateur
+- correction : le Chart Editor reserve maintenant un panneau bas unique de statut/controles et limite les clics de notes a la zone de contenu au-dessus du panneau
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:40:56 +02:00`
+- decision : `menu.bat` sert de lanceur Windows unique pour le jeu, `src.chart_editor` et la lecture rapide des logs actifs
+- piege : lancer un batch depuis un autre dossier change le repertoire courant et casse les chemins relatifs
+- correction : `menu.bat` commence par `cd /d "%~dp0"` et prefere `.venv\Scripts\python.exe` si disponible
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:39:20 +02:00`
+- piege : le joueur etait bien place a droite, mais les hits reussis animaient `self.opponent`, ce qui donnait l'impression que l'utilisateur jouait le personnage de gauche
+- correction : `try_hit_notes()` anime maintenant `self.player`, et les champs de chart `player`/`enemy` permettent de choisir les dossiers de personnages a charger
+- piege : l'editeur de charts devait choisir musique et versus sans casser le schema plat `name/bpm/offset/notes`
+- correction : `src.chart_editor` sauvegarde `audio`, `player` et `enemy` dans le chart natif, avec selection par `TAB`, `P` et `O`
+- decision : l'easter egg `AVRIL` reste limite au menu principal et ses parametres de fuite sont exposes dans `data/config.json`
+- piege : ouvrir les nouveaux handlers avant d'archiver les logs peut verrouiller `user.log` ou `debug.log` sous Windows
+- correction : `configure_logging()` ferme les handlers existants, archive l'ancien log en `<logname>.0.log`, decale les anciennes copies jusqu'a `<logname>.2.log`, puis ouvre un fichier actif neuf en mode `w`
+- piege : un processus Windows peut garder un handle de log quelques instants apres un smoke stop force
+- correction : la rotation retente les renommages avant de degrader en copie d'archive, afin de ne pas bloquer le demarrage
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:24:19 +02:00`
+- piege : la task VS Code `Run FNF Game` pointait vers `C:/Users/Luka/.../python3.13.exe`, un chemin machine-specific qui casse le smoke launch sur un autre poste
+- correction : `.vscode/tasks.json` lance maintenant `main.py` via `${workspaceFolder}/.venv/Scripts/python.exe`
+- piege : le handler `KEYDOWN` de `Game.handle_events()` testait `lane is not None` meme apres les branches `ESC` et `SPACE`, ce qui faisait crasher le lancement d'un morceau avec `UnboundLocalError`
+- correction : `lane` est initialise a `None` avant le dispatch clavier du mode `PLAYING`, ce qui garde `SPACE` et `ESC` hors du flux de frappe des notes
+- piege : `load_project_config()` savait fournir des defaults en memoire mais ne recreait pas `data/config.json` si le fichier manquait ou devenait invalide
+- correction : `load_project_config()` ecrit maintenant la fusion des defaults sur disque quand `data/config.json` manque, est invalide ou ne contient pas les nouvelles cles
+- piege : les keybinds sauvegardes comme simples noms de touches logiques derivent selon le layout et ne garantissent pas la meme touche physique entre qwerty et azerty
+- correction : `src.keybinds` stocke `key`, `scancode` et `display`, migre les anciens binds `q/z` vers les positions physiques `A/W`, et le runtime matche d'abord les `scancode`
+- piege : des doublons de keybinds rendent le gameplay ambigu car une seule lane gagne lors du premier match d'evenement
+- correction : `OptionsScreen.resolve_duplicate_keybinds()` echange les binds quand l'utilisateur capture une touche deja utilisee
+- verification : un script headless temporaire avec `SDL_VIDEODRIVER=dummy` et `SDL_AUDIODRIVER=dummy` a valide la recreation des JSON, la migration des anciens binds et le matching `K_q + KSCAN_A` puis `K_z + KSCAN_W`
 - piege : le projet utilisait des `print()` disperses dans plusieurs modules, sans separation claire entre messages utilisateur et details techniques
 - correction : ajout d'un module central `src/logging_utils.py` avec deux familles de loggers, `user` et `debug`
 - piege : `data/config.json` n'avait aucune reference pour piloter les logs
 - correction : ajout d'un bloc `logging` dans `data/config.json`
 - piege : l'etat Git n'est pas verifiable dans cet environnement car la commande `git` est indisponible
 - consequence : ne pas inventer de revision ou de commit dans la documentation de travail
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 03:51:33 +02:00`
+- correction de connaissance : dans cet environnement de reprise, `git` est disponible et `git status --short --branch` a ete execute avec succes
+- piege : `python -m src.chart_editor` importait le module puis quittait sans ouvrir l'editeur, faute de bloc `if __name__ == "__main__"`
+- correction : ajout d'un point d'entree `main()` pour l'editeur de charts et conservation d'un fallback sans preview sonore si le mixer audio echoue
+- piege : `python -m src.week_manager` ne produisait aucune verification visible, car le module ne possedait pas de point d'entree CLI
+- correction : ajout d'un point d'entree listant les weeks et charts disponibles via les logs utilisateur
+- piege : le jeu chargeait les charts en partie sans charger de MP3, OGG ou WAV correspondant
+- correction : `Game.play_song()` cherche maintenant un audio via le champ optionnel `audio`, puis via `assets/Songs/<chart>` et `assets/Songs/<name>`
+- piege : le spawn des notes transmettait seulement `gameplay` a `Note`, sans `note_size`, et utilisait une fenetre de spawn exprimee en secondes comparee a des millisecondes
+- correction : le spawn transmet une configuration combinee et utilise `gameplay.note_approach_time_ms` pour faire arriver les notes sur la zone de frappe au temps cible
+- impact : un chart sans audio reste jouable en mode muet ; un chart avec audio correspondant charge le fichier et le demarre avec `SPACE`
+- piege : un build PyInstaller one-file rendrait les donnees customisables moins visibles et moins pratiques a modifier
+- correction : choix documente du mode one-folder avec `assets/`, `data/` et `DOCS/` inclus comme dossiers redistribuables
+- piege : les artefacts PyInstaller peuvent polluer le depot et masquer les vrais changements
+- correction : ajout d'exclusions Git pour `build/`, `dist/`, `artifacts/`, caches Python et logs generes
+- piege : avec PyInstaller 6.3, placer `contents_directory="."` sur `COLLECT(...)` ne supprime pas `_internal`
+- correction : `contents_directory="."` est place sur `EXE(...)`, ce qui met les donnees redistribuables au niveau racine du dossier `dist`
+- piege : `Compress-Archive` peut echouer juste apres PyInstaller si Windows garde `base_library.zip` verrouille
+- correction : le script de build retente l'archivage plusieurs fois avec un court delai
+- verification : les builds release et debug generent `dist/` et `artifacts/`, les dossiers `assets`, `data` et `DOCS` sont presents a la racine des redistribuables
+- verification : les warnings PyInstaller restants ont ete lus ; ils concernent des modules de plateforme absents sous Windows ou des modules optionnels de Pygame non utilises
+- piege : ajouter une regle `.gitignore` ne retire pas les fichiers deja suivis par Git
+- correction : retirer les caches Python et logs generes de l'index avec `git rm --cached` quand ils sont deja versionnes
+- verification : la date `2026-04-12` a ete reverifiee localement avec `Get-Date -Format yyyy-MM-dd`
+- piege : `src/game.py` expose deja `GameState.PAUSED` et les helpers de pause audio, mais `ESC` en gameplay renvoie encore directement au menu principal
+- consequence : la pause ingame demandera une vraie machine d'etats pour separer reprise, options ingame, restart et quit sans casser la partie en cours
+- piege : `OptionsScreen` sait deja sauvegarder les parametres, mais son callback de retour actuel vise le menu principal et non un menu pause contextuel
+- trace : creation du backlog multi-agents `TODOs/2026-04-12_pause_ingame_menu.md` pour piloter l'implementation et imposer une mise a jour continue de la checklist
+- piege verifie : aucun mecanisme de navigateur externe ni aucun tracker de sequence globale type Konami Code n'est present dans `src/` a ce stade
+- consequence : l'easter egg Rickroll devra centraliser son suivi d'inputs dans la boucle runtime et documenter la limite potentielle de l'autoplay navigateur
+- trace : creation du backlog multi-agents `TODOs/2026-04-12_konami_code_rickroll.md` pour piloter l'implementation de l'easter egg ingame
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 03:58:29 +02:00`
+- reference : documentation Pygame consultee pour `pygame.mixer.music.pause()`, `unpause()`, `stop()` et `get_pos()` : https://www.pygame.org/docs/ref/music.html
+- reference : documentation Pygame consultee pour la queue d'evenements et `pygame.event.get()` : https://www.pygame.org/docs/ref/event.html
+- decision : utiliser `GameState.PAUSED` avec un `PauseMenu` dedie plutot qu'un retour direct au menu principal
+- piege : `ESC` quittait la partie et stoppait l'audio ; cette touche doit maintenant ouvrir la pause et ne plus detruire l'etat du chart
+- correction : `show_pause_menu()` fige l'audio et le gameplay, `resume_from_pause()` reprend seulement si la partie etait en lecture avant la pause
+- piege : les options existantes retournaient toujours au menu principal via leur callback
+- correction : les options ouvertes depuis la pause utilisent `back_to_pause_menu()` et appliquent les keybinds avant de revenir au menu pause
+- piege : `restart` ne doit pas reconstruire le chart depuis le nom affiche, car le nom JSON et le nom de fichier peuvent diverger
+- correction : `current_song_key` est renseigne par `play_song()` et sert de source de verite pour `restart_current_song()`
+- limite documentee : le story mode actuel lance encore uniquement le premier morceau d'une week ; la pause nettoie `current_week` sur `QUIT`, mais l'enchainement multi-song reste hors scope courant
+- piege : le feedback visuel du Konami Code pouvait rester affichable hors contexte ingame si l'utilisateur quittait rapidement la partie puis ouvrait les options du menu principal
+- correction : `draw_konami_message()` verifie maintenant `is_ingame_context()` et les retours au menu nettoient aussi le feedback temporaire
+- piege : le buffer du Konami Code n'etait pas purge sur perte de focus ni sur certaines transitions entre `PLAYING`, `PAUSED` et `OPTIONS`
+- correction : le runtime remet la sequence a zero sur les evenements de focus SDL/Pygame et sur les changements d'etat relies au flow ingame
+- reference : documentation Python consultee pour `webbrowser.open()` : https://docs.python.org/3/library/webbrowser.html
+- reference : documentation MDN consultee sur les politiques d'autoplay navigateur : https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay
+- decision : le tracker Konami est centralise dans `Game.handle_events()` pour observer les `KEYDOWN` sans interrompre les controles normaux
+- decision : les contextes ingame autorises sont `PLAYING`, `PAUSED` et `OPTIONS` uniquement quand les options viennent du menu pause
+- piege : une touche maintenue ou une repetition rapide de la sequence pourrait ouvrir trop d'onglets
+- correction : `KONAMI_COOLDOWN_MS` limite les activations et le buffer est remis a zero apres chaque activation
+- piege : l'ouverture du navigateur peut echouer ou ne pas confirmer l'ouverture
+- correction : `webbrowser.open()` est appele dans un thread daemon avec journalisation explicite des exceptions et des retours `False`
+- limite documentee : `autoplay=1` demande l'autoplay, mais le navigateur peut le bloquer si sa politique locale refuse l'audio automatique
+- piege : la fusion superficielle de `data/settings.json` suffit tant que tous les sous-blocs existent deja, mais casse la retrocompatibilite des nouveaux reglages imbriques comme `display.mode`
+- correction : `Settings.load_settings()` utilise maintenant une fusion recursive pour conserver les nouveaux defaults imbriques avec les anciens fichiers utilisateur
+- piege : le mode plein ecran doit rester persistant sans recreer la fenetre a chaque simple sauvegarde de volume ou de keybind
+- correction : `Game.apply_display_mode()` memorise le mode courant et ne rappelle `pygame.display.set_mode()` que si le mode demande change reellement ou si l'initialisation le force
+- decision : garder une resolution logique 1280x720 aussi bien en fenetre qu'en plein ecran limite l'impact sur les coordonnees UI et le rendu existant
+- decision : un `GameState.INTRO` dedie simplifie l'ecran d'intro skippable sans polluer `MenuScreen` ni la boucle de gameplay
+- verification : les nouvelles features `intro`, `display.mode` et menu anime ont ete verifiees en headless avec `SDL_VIDEODRIVER=dummy`, ainsi qu'un lancement court de `main.main()` avec fermeture controlee

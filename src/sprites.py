@@ -3,7 +3,6 @@ Sprite classes for FNF game - Notes, Players, UI elements
 """
 import pygame
 from enum import Enum
-from pathlib import Path
 from src.logging_utils import get_debug_logger
 from src.resources import get_resource_path
 
@@ -36,21 +35,24 @@ class Note(pygame.sprite.Sprite):
         
         self.hit = False
         self.missed = False
+        self.miss_counted = False
         
     def update(self, current_time):
         """Update note position based on time"""
         spawn_distance = self.config['spawn_distance']
         hit_window = self.config['hit_window']
+        approach_time_ms = max(1, int(self.config.get('note_approach_time_ms', 1500)))
+        hit_zone_y = self.config.get('hit_zone_y', self.rect.centery + spawn_distance)
         
-        # Calculate elapsed time since note spawn
-        elapsed = current_time - self.spawn_time
+        # spawn_time is the target hit time stored in the chart.
+        time_until_hit = self.spawn_time - current_time
+        progress = 1 - (time_until_hit / approach_time_ms)
         
-        # Calculate Y position (notes fall down)
-        total_fall_time = spawn_distance / 1000  # milliseconds
-        self.rect.y = -spawn_distance + (elapsed / 1000) * spawn_distance
+        # Place the note above the hit zone, then land on it at the chart time.
+        self.rect.centery = hit_zone_y - spawn_distance + (progress * spawn_distance)
         
         # Mark as missed if it passed the hit zone
-        if elapsed > (total_fall_time * 1000 + hit_window * 2) and not self.hit:
+        if current_time - self.spawn_time > hit_window and not self.hit:
             self.missed = True
     
     def get_offset(self, current_time):
@@ -69,9 +71,10 @@ class HitZone(pygame.sprite.Sprite):
 
 class Character(pygame.sprite.Sprite):
     """Player or opponent character"""
-    def __init__(self, x, y, character_type="player", size=350):
+    def __init__(self, x, y, character_type="player", size=350, character_name=None):
         super().__init__()
         self.character_type = character_type  # "player" or "enemy"
+        self.character_name = character_name
         self.target_height = size  # Target height in pixels, maintains aspect ratio
         self.animation_frame = 0
         self.animation_speed = 0.1
@@ -108,10 +111,15 @@ class Character(pygame.sprite.Sprite):
         """Load all sprite images for this character"""
         base_path = get_resource_path("assets", "sprites", "Characters")
         
-        if self.character_type == "player":
-            char_path = base_path / "Player"
-        else:  # enemy
-            char_path = base_path / "EnemyTest"
+        default_folder = "Player" if self.character_type == "player" else "EnemyTest"
+        char_path = base_path / (self.character_name or default_folder)
+        if not char_path.is_dir():
+            debug_logger.warning(
+                "Dossier de personnage introuvable %s, fallback vers %s.",
+                char_path,
+                default_folder,
+            )
+            char_path = base_path / default_folder
         
         # Load all animation sprites
         animations = ["Idle", "Up", "Down", "Left", "Right"]
@@ -175,7 +183,7 @@ class FloatingScore(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
         
-    def update(self):
+    def update(self, *_):
         """Update position and lifetime"""
         elapsed = pygame.time.get_ticks() - self.start_time
         

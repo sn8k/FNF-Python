@@ -3,10 +3,16 @@ FNF-Style Chart Editor for FNF Lightweight
 Run: python -m src.chart_editor
 """
 import json
+import sys
 import pygame
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.chart_compat import get_default_export_path, load_chart_file, serialize_chart
 from src.logging_utils import configure_logging, get_debug_logger, get_user_logger
-from src.resources import get_resource_path
+from src.resources import get_project_root, get_resource_path
 
 
 configure_logging()
@@ -17,9 +23,10 @@ class ChartEditor:
     """FNF-style GUI chart editor with song preview and upscroll playback"""
     def __init__(self, chart_file=None):
         pygame.init()
-        pygame.mixer.init()
+        self.audio_available = self.init_audio()
 
         self.chart_file = Path(chart_file or get_resource_path("data", "charts", "test_song.json"))
+        self.export_chart_file = self.chart_file
 
         self.config = {
             "width": 1400,
@@ -36,7 +43,10 @@ class ChartEditor:
         self.load_chart()
 
         self.song_files = self.find_song_files()
-        self.selected_song_index = 0
+        self.character_folders = self.find_character_folders()
+        self.selected_song_index = self.get_initial_song_index()
+        self.selected_player_index = self.get_initial_character_index("player", "Player")
+        self.selected_enemy_index = self.get_initial_character_index("enemy", "EnemyTest")
         self.loaded_song_path = None
         self.song_name = "No song loaded"
 
@@ -55,7 +65,9 @@ class ChartEditor:
 
         # UI layout
         self.timeline_height = 60
-        self.lane_height = self.config['height'] - self.timeline_height
+        self.bottom_panel_height = 150
+        self.content_bottom = self.config['height'] - self.bottom_panel_height
+        self.lane_height = self.content_bottom - self.timeline_height
         self.lane_width = self.config['width'] / self.config['lanes']
         self.lane_colors = [
             (255, 100, 100),  # Left - Red
@@ -67,11 +79,21 @@ class ChartEditor:
         if self.song_files:
             self.load_song(self.selected_song_index)
 
+    def init_audio(self):
+        """Initialize audio without blocking the editor if the mixer is unavailable."""
+        try:
+            pygame.mixer.init()
+            return True
+        except pygame.error as error:
+            user_logger.warning("Audio indisponible, editeur lance sans preview sonore.")
+            debug_logger.warning("Initialisation audio de l'editeur impossible: %s", error)
+            return False
+
     def load_chart(self):
         """Load chart from file"""
         if self.chart_file.exists():
-            with open(self.chart_file, 'r', encoding="utf-8") as f:
-                self.chart = json.load(f)
+            self.chart = load_chart_file(self.chart_file)
+            self.export_chart_file = get_default_export_path(self.chart_file, self.chart)
         else:
             self.chart = {
                 "name": "New Song",
@@ -79,21 +101,84 @@ class ChartEditor:
                 "offset": 0,
                 "notes": []
             }
+            self.export_chart_file = self.chart_file
 
     def save_chart(self):
         """Save chart to file"""
-        self.chart_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.chart_file, 'w', encoding="utf-8") as f:
-            json.dump(self.chart, f, indent=2)
-        user_logger.info("Chart sauvegarde: %s", self.chart_file)
+        self.update_chart_characters()
+        self.export_chart_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.export_chart_file, 'w', encoding="utf-8") as f:
+            json.dump(serialize_chart(self.chart), f, indent=2)
+        user_logger.info("Chart sauvegarde: %s", self.export_chart_file)
 
     def find_song_files(self):
         """Find songs in assets/Songs"""
-        song_dir = get_resource_path("assets", "Songs")
-        if not song_dir.exists():
+        song_files = []
+        search_roots = [
+            get_resource_path("assets", "Songs"),
+            get_resource_path("test-data", "music"),
+        ]
+        for song_dir in search_roots:
+            if not song_dir.exists():
+                continue
+            for extension in ("*.mp3", "*.ogg", "*.wav"):
+                song_files.extend(sorted(song_dir.rglob(extension)))
+        return [str(path) for path in song_files]
+
+    def find_character_folders(self):
+        """Find available character folders."""
+        character_root = get_resource_path("assets", "sprites", "Characters")
+        if not character_root.exists():
             return []
-        files = sorted(song_dir.glob("*.mp3")) + sorted(song_dir.glob("*.wav"))
-        return [str(path) for path in files]
+        return [path.name for path in sorted(character_root.iterdir()) if path.is_dir()]
+
+    def get_initial_song_index(self):
+        """Prefer the audio declared by the loaded chart when available."""
+        audio_path = self.chart.get("audio")
+        if not audio_path:
+            return 0
+
+        candidate = get_project_root().joinpath(*Path(audio_path).parts)
+        candidate_text = str(candidate)
+        for index, song_file in enumerate(self.song_files):
+            if Path(song_file) == candidate or song_file == candidate_text:
+                return index
+        return 0
+
+    def get_initial_character_index(self, chart_key, default_name):
+        """Return the selected character index for a chart role."""
+        if not self.character_folders:
+            return 0
+
+        character_name = self.chart.get(chart_key) or default_name
+        if character_name in self.character_folders:
+            return self.character_folders.index(character_name)
+        return 0
+
+    def selected_character(self, index):
+        """Return a character folder name by index."""
+        if not self.character_folders:
+            return None
+        return self.character_folders[index % len(self.character_folders)]
+
+    def update_chart_characters(self):
+        """Persist selected player/enemy folders in the chart."""
+        player = self.selected_character(self.selected_player_index)
+        enemy = self.selected_character(self.selected_enemy_index)
+        if player:
+            self.chart["player"] = player
+        if enemy:
+            self.chart["enemy"] = enemy
+
+    def set_chart_audio_from_loaded_song(self):
+        """Persist the selected preview audio as a project-relative chart audio path."""
+        if not self.loaded_song_path:
+            return
+        loaded_path = Path(self.loaded_song_path)
+        try:
+            self.chart["audio"] = loaded_path.resolve().relative_to(get_project_root()).as_posix()
+        except ValueError:
+            self.chart["audio"] = loaded_path.as_posix()
 
     def load_song(self, index):
         """Load a song from assets/Songs"""
@@ -101,6 +186,11 @@ class ChartEditor:
             return
         self.loaded_song_path = self.song_files[index]
         self.song_name = Path(self.loaded_song_path).stem
+        self.set_chart_audio_from_loaded_song()
+        if not self.audio_available:
+            self.song_name = f"{self.song_name} (audio disabled)"
+            return
+
         try:
             pygame.mixer.music.load(self.loaded_song_path)
             pygame.mixer.music.set_volume(0.8)
@@ -112,7 +202,7 @@ class ChartEditor:
 
     def start_playback(self):
         """Start or resume audio playback"""
-        if not self.loaded_song_path:
+        if not self.audio_available or not self.loaded_song_path:
             return
 
         if self.playing and not self.paused:
@@ -132,7 +222,7 @@ class ChartEditor:
 
     def pause_playback(self):
         """Pause audio playback"""
-        if self.playing and not self.paused:
+        if self.audio_available and self.playing and not self.paused:
             pygame.mixer.music.pause()
             self.current_time_ms = pygame.time.get_ticks() - self.play_start_ticks
             self.playing = False
@@ -140,7 +230,8 @@ class ChartEditor:
 
     def stop_playback(self):
         """Stop playback and reset"""
-        pygame.mixer.music.stop()
+        if self.audio_available:
+            pygame.mixer.music.stop()
         self.current_time_ms = 0
         self.playing = False
         self.paused = False
@@ -193,6 +284,12 @@ class ChartEditor:
                         self.load_song(self.selected_song_index)
                 elif event.key == pygame.K_RETURN:
                     self.load_song(self.selected_song_index)
+                elif event.key == pygame.K_p and self.character_folders:
+                    self.selected_player_index = (self.selected_player_index + 1) % len(self.character_folders)
+                    self.update_chart_characters()
+                elif event.key == pygame.K_o and self.character_folders:
+                    self.selected_enemy_index = (self.selected_enemy_index + 1) % len(self.character_folders)
+                    self.update_chart_characters()
                 elif event.key == pygame.K_c:
                     if pygame.key.get_mods() & pygame.KMOD_SHIFT:
                         self.chart['notes'] = []
@@ -202,7 +299,7 @@ class ChartEditor:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click - add note
                     mouse_x, mouse_y = pygame.mouse.get_pos()
-                    if mouse_y > self.timeline_height:
+                    if self.timeline_height < mouse_y < self.content_bottom:
                         lane = int(mouse_x / self.lane_width)
                         if 0 <= lane < self.config['lanes']:
                             time_ms = self.x_to_time(mouse_x)
@@ -220,7 +317,7 @@ class ChartEditor:
 
                 elif event.button == 3:  # Right click - delete note
                     mouse_x, mouse_y = pygame.mouse.get_pos()
-                    if mouse_y > self.timeline_height:
+                    if self.timeline_height < mouse_y < self.content_bottom:
                         lane = int(mouse_x / self.lane_width)
                         time_ms = self.x_to_time(mouse_x)
                         for i, note in enumerate(self.chart['notes']):
@@ -233,31 +330,52 @@ class ChartEditor:
                 self.scroll_offset = max(0, self.scroll_offset - event.y * 300)
 
     def draw_song_panel(self):
-        """Draw song selection and playback panel"""
-        panel_height = 120
+        """Draw the non-overlapping status and controls panel."""
+        panel_height = self.bottom_panel_height
+        panel_top = self.content_bottom
         panel_color = (25, 25, 35)
-        pygame.draw.rect(self.screen, panel_color, (0, self.config['height'] - panel_height, self.config['width'], panel_height))
+        pygame.draw.rect(self.screen, panel_color, (0, panel_top, self.config['width'], panel_height))
+        pygame.draw.line(self.screen, (100, 120, 150), (0, panel_top), (self.config['width'], panel_top), 2)
 
-        font = pygame.font.Font(None, 28)
-        small_font = pygame.font.Font(None, 22)
+        title_font = pygame.font.Font(None, 26)
+        font = pygame.font.Font(None, 23)
 
         song_text = f"Loaded song: {self.song_name}"
         status_text = "PLAYING" if self.playing and not self.paused else "PAUSED" if self.paused else "STOPPED"
-        info_texts = [
+        song_selection = (
+            f"{self.selected_song_index + 1}/{len(self.song_files)}"
+            if self.song_files else "0/0"
+        )
+        left_texts = [
+            "CHART",
+            f"Scroll: {self.scroll_offset:.0f}ms | Zoom: {self.pixels_per_ms:.2f}px/ms | BPM: {self.bpm}",
+            f"Notes: {len(self.chart['notes'])} | Song: {self.chart.get('name', 'New Song')}",
+            f"Versus: {self.chart.get('player', 'Player')} vs {self.chart.get('enemy', 'EnemyTest')}",
+            f"Save: CTRL+S -> {self.export_chart_file.name}",
+        ]
+        right_texts = [
+            "PREVIEW",
             song_text,
-            f"Status: {status_text} | Mode: {self.preview_mode}",
-            f"Song selection: {self.selected_song_index + 1}/{len(self.song_files)}",
-            "TAB: next song | SHIFT+TAB: prev song | ENTER: load song | SPACE: play/pause",
+            f"Status: {status_text} | Mode: {self.preview_mode} | Audio: {song_selection}",
+            "Left/Right: scroll | Up/Down: zoom | Click: add | Right Click: delete",
+            "TAB: audio | ENTER: load | P: player | O: enemy | SPACE: play/pause",
         ]
 
-        for i, text in enumerate(info_texts):
-            surface = font.render(text, True, (220, 220, 220) if i < 3 else (180, 180, 180))
-            self.screen.blit(surface, (10, self.config['height'] - panel_height + 10 + i * 28))
+        self.draw_panel_column(left_texts, 10, panel_top + 10, title_font, font)
+        self.draw_panel_column(right_texts, 700, panel_top + 10, title_font, font)
+
+    def draw_panel_column(self, lines, x, y, title_font, font):
+        """Draw one compact text column in the bottom panel."""
+        for i, text in enumerate(lines):
+            active_font = title_font if i == 0 else font
+            color = (150, 200, 255) if i == 0 else (220, 220, 220)
+            surface = active_font.render(text, True, color)
+            self.screen.blit(surface, (x, y + i * 26))
 
     def draw_preview(self):
         """Draw upscroll preview for current playback/time"""
         preview_top = self.timeline_height + 20
-        preview_bottom = self.config['height'] - 140
+        preview_bottom = self.content_bottom - 20
         preview_height = preview_bottom - preview_top
 
         pygame.draw.rect(self.screen, (20, 20, 30), (0, preview_top, self.config['width'], preview_height))
@@ -314,7 +432,7 @@ class ChartEditor:
             color = (60, 60, 60) if lane % 2 == 0 else (50, 50, 50)
             pygame.draw.rect(self.screen, color, (x, self.timeline_height, self.lane_width, self.lane_height))
             pygame.draw.line(self.screen, (100, 100, 100), (x, self.timeline_height),
-                             (x, self.config['height']), 2)
+                             (x, self.content_bottom), 2)
 
         beat_duration = (60000 / self.bpm)
         time = int(self.scroll_offset / beat_duration) * beat_duration
@@ -323,7 +441,7 @@ class ChartEditor:
             if 0 <= x <= self.config['width']:
                 color = (100, 100, 100) if int(time / beat_duration) % 4 == 0 else (80, 80, 80)
                 pygame.draw.line(self.screen, color, (x, self.timeline_height),
-                                 (x, self.config['height'] - 140), 1)
+                                 (x, self.content_bottom), 1)
             time += beat_duration / 4
 
     def draw_notes(self):
@@ -347,16 +465,8 @@ class ChartEditor:
                 pygame.draw.rect(self.screen, (255, 255, 255), rect, 2)
 
     def draw_ui(self):
-        """Draw UI information"""
-        font = pygame.font.Font(None, 24)
-        info_texts = [
-            f"Scroll: {self.scroll_offset:.0f}ms | Zoom: {self.pixels_per_ms:.2f}px/ms | BPM: {self.bpm}",
-            f"Notes: {len(self.chart['notes'])} | Song: {self.chart.get('name', 'New Song')}",
-            "Left/Right: Scroll | Up/Down: Zoom | Click: Add | Right Click: Delete | CTRL+S: Save",
-        ]
-        for i, text in enumerate(info_texts):
-            surface = font.render(text, True, (200, 200, 200))
-            self.screen.blit(surface, (10, self.config['height'] - 110 + i * 25))
+        """Legacy hook kept for draw order compatibility."""
+        pass
 
     def draw(self):
         """Draw the editor"""
@@ -376,4 +486,15 @@ class ChartEditor:
             self.update_time()
             self.draw()
             self.clock.tick(60)
-        pygame.mixer.music.stop()
+        if self.audio_available:
+            pygame.mixer.music.stop()
+
+
+def main():
+    chart_file = sys.argv[1] if len(sys.argv) > 1 else None
+    editor = ChartEditor(chart_file)
+    editor.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,14 @@
 """
 Week Editor for creating and managing story mode weeks
 """
+import sys
+from pathlib import Path
+
 import pygame
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.logging_utils import configure_logging, get_user_logger
 from src.resources import get_resource_path
 from src.week_manager import Week, WeekManager, ChartManager
@@ -74,10 +81,14 @@ class WeekEditor:
                 
                 # Song management
                 elif event.key == pygame.K_UP:
-                    self.selected_song_index = max(0, self.selected_song_index - 1)
+                    if self.available_charts:
+                        self.selected_song_index = max(0, self.selected_song_index - 1)
                 elif event.key == pygame.K_DOWN:
-                    self.selected_song_index = min(len(self.available_charts) - 1, 
-                                                   self.selected_song_index + 1)
+                    if self.available_charts:
+                        self.selected_song_index = min(
+                            len(self.available_charts) - 1,
+                            self.selected_song_index + 1
+                        )
                 elif event.key == pygame.K_a:
                     if self.available_charts:
                         song = self.available_charts[self.selected_song_index]
@@ -90,14 +101,16 @@ class WeekEditor:
                 
                 # Background selection
                 elif event.key == pygame.K_LEFT:
-                    self.selected_bg_index = max(0, self.selected_bg_index - 1)
                     if self.available_backgrounds:
+                        self.selected_bg_index = max(0, self.selected_bg_index - 1)
                         self.current_week.background = self.available_backgrounds[self.selected_bg_index]
                 
                 elif event.key == pygame.K_RIGHT:
-                    self.selected_bg_index = min(len(self.available_backgrounds) - 1,
-                                                 self.selected_bg_index + 1)
                     if self.available_backgrounds:
+                        self.selected_bg_index = min(
+                            len(self.available_backgrounds) - 1,
+                            self.selected_bg_index + 1
+                        )
                         self.current_week.background = self.available_backgrounds[self.selected_bg_index]
                 
                 # Save
@@ -136,7 +149,7 @@ class WeekEditor:
         y = 170
         for i, song in enumerate(self.available_charts[:5]):
             color = (100, 200, 255) if i == self.selected_song_index else (100, 100, 100)
-            song_text = self.font_small.render(f"{'▶' if i == self.selected_song_index else '  '} {song}", 
+            song_text = self.font_small.render(f"{'>' if i == self.selected_song_index else ' '} {song}",
                                                True, color)
             self.screen.blit(song_text, (70, y))
             y += 30
@@ -148,7 +161,7 @@ class WeekEditor:
         
         y = 170
         for song in self.current_week.songs:
-            song_text = self.font_small.render(f"♪ {song}", True, (100, 200, 255))
+            song_text = self.font_small.render(f"* {song}", True, (100, 200, 255))
             self.screen.blit(song_text, (720, y))
             y += 30
         
@@ -160,7 +173,7 @@ class WeekEditor:
         y = 450
         for i, bg in enumerate(self.available_backgrounds):
             color = (100, 200, 255) if i == self.selected_bg_index else (100, 100, 100)
-            bg_text = self.font_small.render(f"{'▶' if i == self.selected_bg_index else '  '} {bg}", 
+            bg_text = self.font_small.render(f"{'>' if i == self.selected_bg_index else ' '} {bg}",
                                              True, color)
             self.screen.blit(bg_text, (70, y))
             if i > 4:
@@ -189,6 +202,10 @@ class WeekEditor:
         pygame.quit()
 
 
-if __name__ == "__main__":
+def main():
     editor = WeekEditor()
     editor.run()
+
+
+if __name__ == "__main__":
+    main()
