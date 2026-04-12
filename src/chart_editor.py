@@ -65,7 +65,9 @@ class ChartEditor:
 
         # UI layout
         self.timeline_height = 60
-        self.lane_height = self.config['height'] - self.timeline_height
+        self.bottom_panel_height = 150
+        self.content_bottom = self.config['height'] - self.bottom_panel_height
+        self.lane_height = self.content_bottom - self.timeline_height
         self.lane_width = self.config['width'] / self.config['lanes']
         self.lane_colors = [
             (255, 100, 100),  # Left - Red
@@ -297,7 +299,7 @@ class ChartEditor:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click - add note
                     mouse_x, mouse_y = pygame.mouse.get_pos()
-                    if mouse_y > self.timeline_height:
+                    if self.timeline_height < mouse_y < self.content_bottom:
                         lane = int(mouse_x / self.lane_width)
                         if 0 <= lane < self.config['lanes']:
                             time_ms = self.x_to_time(mouse_x)
@@ -315,7 +317,7 @@ class ChartEditor:
 
                 elif event.button == 3:  # Right click - delete note
                     mouse_x, mouse_y = pygame.mouse.get_pos()
-                    if mouse_y > self.timeline_height:
+                    if self.timeline_height < mouse_y < self.content_bottom:
                         lane = int(mouse_x / self.lane_width)
                         time_ms = self.x_to_time(mouse_x)
                         for i, note in enumerate(self.chart['notes']):
@@ -328,12 +330,15 @@ class ChartEditor:
                 self.scroll_offset = max(0, self.scroll_offset - event.y * 300)
 
     def draw_song_panel(self):
-        """Draw song selection and playback panel"""
-        panel_height = 120
+        """Draw the non-overlapping status and controls panel."""
+        panel_height = self.bottom_panel_height
+        panel_top = self.content_bottom
         panel_color = (25, 25, 35)
-        pygame.draw.rect(self.screen, panel_color, (0, self.config['height'] - panel_height, self.config['width'], panel_height))
+        pygame.draw.rect(self.screen, panel_color, (0, panel_top, self.config['width'], panel_height))
+        pygame.draw.line(self.screen, (100, 120, 150), (0, panel_top), (self.config['width'], panel_top), 2)
 
-        font = pygame.font.Font(None, 28)
+        title_font = pygame.font.Font(None, 26)
+        font = pygame.font.Font(None, 23)
 
         song_text = f"Loaded song: {self.song_name}"
         status_text = "PLAYING" if self.playing and not self.paused else "PAUSED" if self.paused else "STOPPED"
@@ -341,21 +346,36 @@ class ChartEditor:
             f"{self.selected_song_index + 1}/{len(self.song_files)}"
             if self.song_files else "0/0"
         )
-        info_texts = [
+        left_texts = [
+            "CHART",
+            f"Scroll: {self.scroll_offset:.0f}ms | Zoom: {self.pixels_per_ms:.2f}px/ms | BPM: {self.bpm}",
+            f"Notes: {len(self.chart['notes'])} | Song: {self.chart.get('name', 'New Song')}",
+            f"Versus: {self.chart.get('player', 'Player')} vs {self.chart.get('enemy', 'EnemyTest')}",
+            f"Save: CTRL+S -> {self.export_chart_file.name}",
+        ]
+        right_texts = [
+            "PREVIEW",
             song_text,
-            f"Status: {status_text} | Mode: {self.preview_mode}",
-            f"Song selection: {song_selection}",
+            f"Status: {status_text} | Mode: {self.preview_mode} | Audio: {song_selection}",
+            "Left/Right: scroll | Up/Down: zoom | Click: add | Right Click: delete",
             "TAB: audio | ENTER: load | P: player | O: enemy | SPACE: play/pause",
         ]
 
-        for i, text in enumerate(info_texts):
-            surface = font.render(text, True, (220, 220, 220) if i < 3 else (180, 180, 180))
-            self.screen.blit(surface, (10, self.config['height'] - panel_height + 10 + i * 28))
+        self.draw_panel_column(left_texts, 10, panel_top + 10, title_font, font)
+        self.draw_panel_column(right_texts, 700, panel_top + 10, title_font, font)
+
+    def draw_panel_column(self, lines, x, y, title_font, font):
+        """Draw one compact text column in the bottom panel."""
+        for i, text in enumerate(lines):
+            active_font = title_font if i == 0 else font
+            color = (150, 200, 255) if i == 0 else (220, 220, 220)
+            surface = active_font.render(text, True, color)
+            self.screen.blit(surface, (x, y + i * 26))
 
     def draw_preview(self):
         """Draw upscroll preview for current playback/time"""
         preview_top = self.timeline_height + 20
-        preview_bottom = self.config['height'] - 140
+        preview_bottom = self.content_bottom - 20
         preview_height = preview_bottom - preview_top
 
         pygame.draw.rect(self.screen, (20, 20, 30), (0, preview_top, self.config['width'], preview_height))
@@ -412,7 +432,7 @@ class ChartEditor:
             color = (60, 60, 60) if lane % 2 == 0 else (50, 50, 50)
             pygame.draw.rect(self.screen, color, (x, self.timeline_height, self.lane_width, self.lane_height))
             pygame.draw.line(self.screen, (100, 100, 100), (x, self.timeline_height),
-                             (x, self.config['height']), 2)
+                             (x, self.content_bottom), 2)
 
         beat_duration = (60000 / self.bpm)
         time = int(self.scroll_offset / beat_duration) * beat_duration
@@ -421,7 +441,7 @@ class ChartEditor:
             if 0 <= x <= self.config['width']:
                 color = (100, 100, 100) if int(time / beat_duration) % 4 == 0 else (80, 80, 80)
                 pygame.draw.line(self.screen, color, (x, self.timeline_height),
-                                 (x, self.config['height'] - 140), 1)
+                                 (x, self.content_bottom), 1)
             time += beat_duration / 4
 
     def draw_notes(self):
@@ -445,17 +465,8 @@ class ChartEditor:
                 pygame.draw.rect(self.screen, (255, 255, 255), rect, 2)
 
     def draw_ui(self):
-        """Draw UI information"""
-        font = pygame.font.Font(None, 24)
-        info_texts = [
-            f"Scroll: {self.scroll_offset:.0f}ms | Zoom: {self.pixels_per_ms:.2f}px/ms | BPM: {self.bpm}",
-            f"Notes: {len(self.chart['notes'])} | Song: {self.chart.get('name', 'New Song')}",
-            f"Versus: {self.chart.get('player', 'Player')} vs {self.chart.get('enemy', 'EnemyTest')}",
-            f"Left/Right: Scroll | Up/Down: Zoom | Click: Add | Right Click: Delete | CTRL+S: Save -> {self.export_chart_file.name}",
-        ]
-        for i, text in enumerate(info_texts):
-            surface = font.render(text, True, (200, 200, 200))
-            self.screen.blit(surface, (10, self.config['height'] - 110 + i * 25))
+        """Legacy hook kept for draw order compatibility."""
+        pass
 
     def draw(self):
         """Draw the editor"""

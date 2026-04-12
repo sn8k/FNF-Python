@@ -106,3 +106,4 @@
 - `SPACE` : lancer ou mettre en pause la preview audio
 - `CTRL+S` : sauvegarder le chart
 - la sauvegarde exporte aussi `audio`, `player` et `enemy` quand ils sont selectionnes
+- les informations de chart, preview et controles sont affichees dans le panneau bas de l'editeur

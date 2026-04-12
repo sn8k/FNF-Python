@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-04-12
+- correction du layout du Chart Editor : les informations de chart, preview et controles sont regroupees dans un panneau bas unique pour eviter la superposition visible
+- note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:40:56 +02:00`
 - ajout de `menu.bat`, un menu Windows pour lancer le jeu, ouvrir le Chart Editor ou afficher les derniers logs
 - note de verification : la date `2026-04-12` a ete reverifiee localement via `Get-Date` a `05:39:20 +02:00`
 - correction du bug `player is enemy` : le personnage joueur reste a droite et les hits reussis animent maintenant `self.player`

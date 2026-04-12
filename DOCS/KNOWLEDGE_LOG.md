@@ -1,6 +1,9 @@
 # Journal de connaissances
 
 ## 2026-04-12
+- piege : `draw_song_panel()` et `draw_ui()` dessinaient tous les deux dans la zone basse du Chart Editor, ce qui superposait les textes comme sur la capture utilisateur
+- correction : le Chart Editor reserve maintenant un panneau bas unique de statut/controles et limite les clics de notes a la zone de contenu au-dessus du panneau
+- verification : date de travail reverifiee localement avec `Get-Date` le `2026-04-12 05:40:56 +02:00`
 - decision : `menu.bat` sert de lanceur Windows unique pour le jeu, `src.chart_editor` et la lecture rapide des logs actifs
 - piege : lancer un batch depuis un autre dossier change le repertoire courant et casse les chemins relatifs
 - correction : `menu.bat` commence par `cd /d "%~dp0"` et prefere `.venv\Scripts\python.exe` si disponible
