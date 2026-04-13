@@ -1,10 +1,12 @@
 {
   "name": "Week 1",
   "songs": [
-    "test_song"
+    "Bopeebo",
+    "Fresh",
+    "Dad Battle"
   ],
   "enemies": [
-    "EnemyTest"
+    "Coolkid"
   ],
   "background": "Sticky.png"
 }
